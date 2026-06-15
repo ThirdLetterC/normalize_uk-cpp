@@ -1,0 +1,29 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.13"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "normalize-uk"
+version = "0.1.0"
+description = "Python bindings for Ukrainian text normalization and tokenization utilities"
+requires-python = ">=3.10"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C++",
+]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.20"
+cmake.args = [
+    "-DNORMALIZE_UK_CPP_BUILD_PYTHON=ON",
+    "-DNORMALIZE_UK_CPP_BUILD_TESTS=OFF",
+    "-DNORMALIZE_UK_CPP_BUILD_TOOLS=OFF",
+    "-DNORMALIZE_UK_CPP_FETCH_PYBIND11=OFF",
+]
+wheel.packages = []
