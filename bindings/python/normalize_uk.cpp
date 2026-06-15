@@ -48,7 +48,7 @@ std::vector<Substring> tokenize(std::string_view text)
 
 } // namespace
 
-PYBIND11_MODULE(normalize_uk, m)
+PYBIND11_MODULE(_normalize_uk, m)
 {
     m.doc() = "Python bindings for Ukrainian text normalization and tokenization utilities.";
 

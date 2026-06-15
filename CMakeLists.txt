@@ -97,12 +97,31 @@ if(NORMALIZE_UK_CPP_BUILD_PYTHON)
     target_link_libraries(normalize_uk_python PRIVATE normalize_uk_cpp::normalize_uk_cpp)
     target_compile_features(normalize_uk_python PRIVATE cxx_std_20)
     set_target_properties(normalize_uk_python PROPERTIES
-        OUTPUT_NAME normalize_uk
+        OUTPUT_NAME _normalize_uk
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/normalize_uk
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/normalize_uk
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
+    add_custom_command(TARGET normalize_uk_python POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/bindings/python/normalize_uk/__init__.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/bindings/python/normalize_uk/__init__.pyi
+            ${CMAKE_CURRENT_SOURCE_DIR}/bindings/python/normalize_uk/py.typed
+            $<TARGET_FILE_DIR:normalize_uk_python>
+        VERBATIM
+    )
 
-    install(TARGETS normalize_uk_python LIBRARY DESTINATION .)
+    install(TARGETS normalize_uk_python
+        LIBRARY DESTINATION normalize_uk
+        RUNTIME DESTINATION normalize_uk
+    )
+    install(FILES
+        bindings/python/normalize_uk/__init__.py
+        bindings/python/normalize_uk/__init__.pyi
+        bindings/python/normalize_uk/py.typed
+        DESTINATION normalize_uk
+    )
 endif()
 
 install(TARGETS normalize_uk_cpp
