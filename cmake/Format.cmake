@@ -19,6 +19,7 @@ if(NOT CLANG_FORMAT_EXE)
 endif()
 
 set(FORMAT_FILES
+    benchmarks/uktextnorm_benchmark.cpp
     bindings/python/normalize_uk.cpp
     include/rozpodil/rozpodil.hpp
     include/uktextnorm/uktextnorm.hpp

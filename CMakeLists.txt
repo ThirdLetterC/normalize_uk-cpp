@@ -76,6 +76,9 @@ if(NORMALIZE_UK_CPP_BUILD_TESTS)
     add_test(NAME rozpodil_tests COMMAND rozpodil_tests)
 endif()
 
+add_executable(uktextnorm_benchmark EXCLUDE_FROM_ALL benchmarks/uktextnorm_benchmark.cpp)
+target_link_libraries(uktextnorm_benchmark PRIVATE normalize_uk_cpp::normalize_uk_cpp)
+
 if(NORMALIZE_UK_CPP_BUILD_PYTHON)
     find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
     find_package(pybind11 CONFIG QUIET)
