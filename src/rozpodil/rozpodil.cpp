@@ -49,7 +49,7 @@ std::vector<Cp> codepoints(std::string_view text)
 
 bool contains(std::u32string_view set, char32_t cp)
 {
-    return set.find(cp) != std::u32string_view::npos;
+    return set.contains(cp);
 }
 
 bool is_space(char32_t cp)
@@ -507,7 +507,7 @@ bool is_roman_token(std::string_view token)
         return false;
     }
     for (char c : token) {
-        if (std::string_view("IVXLCDM").find(c) == std::string_view::npos) {
+        if (!std::string_view("IVXLCDM").contains(c)) {
             return false;
         }
     }
@@ -532,7 +532,7 @@ bool roman(std::string_view token)
         return false;
     }
     for (char c : token) {
-        if (std::string_view("IVXML").find(c) == std::string_view::npos) {
+        if (!std::string_view("IVXML").contains(c)) {
             return false;
         }
     }
@@ -551,7 +551,7 @@ bool is_bullet(std::string_view token)
         return true;
     }
     const auto lower = lower_ascii_uk(token);
-    return std::string_view("§абвгдеabcdef").find(lower) != std::string_view::npos || roman(token);
+    return std::string_view("§абвгдеabcdef").contains(std::string_view(lower)) || roman(token);
 }
 
 bool is_smile_at(std::string_view text, std::size_t pos, std::size_t& stop)
@@ -929,8 +929,7 @@ bool token_join(const Atom& left_1,
         if (token_smile(candidate)) {
             return true;
         }
-        if (std::string_view(".?!…").find(left_1.text) != std::string_view::npos &&
-            std::string_view(".?!…").find(right_1.text) != std::string_view::npos) {
+        if (std::string_view(".?!…").contains(left_1.text) && std::string_view(".?!…").contains(right_1.text)) {
             return true;
         }
         if (left_1.text == right_1.text && (left_1.text == "-" || left_1.text == "*")) {

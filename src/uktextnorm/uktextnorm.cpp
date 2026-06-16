@@ -465,7 +465,7 @@ std::string unit_alt()
             out += "|";
         }
         for (const char ch : units[i]) {
-            if (std::string_view(R"(\-[]{}()*+?.,^$|# )").find(ch) != std::string_view::npos) {
+            if (std::string_view(R"(\-[]{}()*+?.,^$|# )").contains(ch)) {
                 out.push_back('\\');
             }
             out.push_back(ch);
@@ -719,7 +719,7 @@ std::string normalize_web(std::string text)
     static const std::regex url(R"(\b(?:https?://|www\.)\S+|\b[\w-]+\.(?:com|ua|org|net|info|io|edu|gov|укр)\b)",
                                 std::regex::icase);
     auto spell = [](std::string s) {
-        while (!s.empty() && std::string_view(".,!?").find(s.back()) != std::string_view::npos) {
+        while (!s.empty() && std::string_view(".,!?").contains(s.back())) {
             s.pop_back();
         }
         for (const auto& [sym, word] : std::array<std::pair<std::string_view, std::string_view>, 5>{
@@ -2358,7 +2358,7 @@ std::string expand_abbreviations(std::string_view text)
         }
         bool has_vowel = false;
         for (const auto& cp : codepoints(token)) {
-            if (vowels.find(cp.value) != std::u32string_view::npos) {
+            if (vowels.contains(cp.value)) {
                 has_vowel = true;
                 break;
             }

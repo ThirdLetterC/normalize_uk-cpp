@@ -43,7 +43,7 @@ void expect_uncertain_contains(const std::string& name,
                                const std::string& reason_fragment)
 {
     for (const auto& span : spans) {
-        if (span.text == text && span.reason.find(reason_fragment) != std::string::npos) {
+        if (span.text == text && span.reason.contains(reason_fragment)) {
             return;
         }
     }

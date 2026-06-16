@@ -1,6 +1,6 @@
 # normalize-uk-cpp
 
-C++20 Ukrainian text normalization and tokenization utilities with optional Python 3.10+ bindings.
+C++23 Ukrainian text normalization and tokenization utilities with optional Python 3.10+ bindings.
 
 ## CMake
 

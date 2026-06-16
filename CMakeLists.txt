@@ -25,9 +25,14 @@ add_library(normalize_uk_cpp
     src/uktextnorm/uktextnorm.cpp
 )
 add_library(normalize_uk_cpp::normalize_uk_cpp ALIAS normalize_uk_cpp)
-set_target_properties(normalize_uk_cpp PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(normalize_uk_cpp PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
 
-target_compile_features(normalize_uk_cpp PUBLIC cxx_std_20)
+target_compile_features(normalize_uk_cpp PUBLIC cxx_std_23)
 target_include_directories(normalize_uk_cpp
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -98,11 +103,14 @@ if(NORMALIZE_UK_CPP_BUILD_PYTHON)
 
     pybind11_add_module(normalize_uk_python MODULE bindings/python/normalize_uk.cpp)
     target_link_libraries(normalize_uk_python PRIVATE normalize_uk_cpp::normalize_uk_cpp)
-    target_compile_features(normalize_uk_python PRIVATE cxx_std_20)
+    target_compile_features(normalize_uk_python PRIVATE cxx_std_23)
     set_target_properties(normalize_uk_python PROPERTIES
         OUTPUT_NAME _normalize_uk
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/normalize_uk
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/normalize_uk
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
