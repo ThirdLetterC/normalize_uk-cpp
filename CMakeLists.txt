@@ -18,7 +18,31 @@ endif()
 option(NORMALIZE_UK_CPP_BUILD_TOOLS "Build command-line tools" ON)
 option(NORMALIZE_UK_CPP_BUILD_TESTS "Build C++ tests" ${NORMALIZE_UK_CPP_DEFAULT_BUILD_TESTS})
 option(NORMALIZE_UK_CPP_BUILD_PYTHON "Build Python 3.10+ bindings" OFF)
+option(NORMALIZE_UK_CPP_FETCH_CTRE "Fetch CTRE when it is not already available" ON)
 option(NORMALIZE_UK_CPP_FETCH_PYBIND11 "Fetch pybind11 when it is not already available" ON)
+
+find_package(ctre CONFIG QUIET)
+
+if(NOT ctre_FOUND)
+    if(NOT NORMALIZE_UK_CPP_FETCH_CTRE)
+        message(FATAL_ERROR "ctre was not found. Install ctre or enable NORMALIZE_UK_CPP_FETCH_CTRE.")
+    endif()
+    include(FetchContent)
+    FetchContent_Declare(
+        ctre
+        GIT_REPOSITORY https://github.com/hanickadot/compile-time-regular-expressions.git
+        GIT_TAG dab09336d6a221299159a5ddc76cdcf6967ba9dd
+    )
+    FetchContent_GetProperties(ctre)
+    if(NOT ctre_POPULATED)
+        FetchContent_Populate(ctre)
+    endif()
+    if(NOT TARGET ctre::ctre)
+        add_library(ctre INTERFACE)
+        add_library(ctre::ctre ALIAS ctre)
+        target_include_directories(ctre INTERFACE $<BUILD_INTERFACE:${ctre_SOURCE_DIR}/include>)
+    endif()
+endif()
 
 add_library(normalize_uk_cpp
     src/rozpodil/rozpodil.cpp
@@ -33,6 +57,7 @@ set_target_properties(normalize_uk_cpp PROPERTIES
 )
 
 target_compile_features(normalize_uk_cpp PUBLIC cxx_std_23)
+target_link_libraries(normalize_uk_cpp PRIVATE $<BUILD_INTERFACE:ctre::ctre>)
 target_include_directories(normalize_uk_cpp
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

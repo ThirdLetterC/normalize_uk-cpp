@@ -2,6 +2,8 @@
 
 #include "../common/utf8.hpp"
 
+#include <ctre.hpp>
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -283,6 +285,49 @@ template <class Fn>
 std::string regex_sub(std::string_view text, const std::regex& re, Fn fn)
 {
     return regex_sub(std::string(text), re, std::move(fn));
+}
+
+template <std::size_t Index, class Match>
+std::string_view cap(const Match& match)
+{
+    return match.template get<Index>().to_view();
+}
+
+template <class Match>
+std::string whole_string(const Match& match)
+{
+    return std::string(cap<0>(match));
+}
+
+template <std::size_t Index, class Match>
+std::string cap_string(const Match& match)
+{
+    return std::string(cap<Index>(match));
+}
+
+template <ctll::fixed_string Pattern, class Fn>
+std::string ctre_sub(std::string input, Fn fn)
+{
+    const std::string_view view(input);
+    auto matches = ctre::search_all<Pattern>(view);
+    auto it = matches.begin();
+    if (it == matches.end()) {
+        return input;
+    }
+
+    std::string out;
+    out.reserve(input.size());
+    std::size_t last = 0;
+    for (; it != matches.end(); ++it) {
+        const auto match = *it;
+        const auto whole = cap<0>(match);
+        const auto pos = static_cast<std::size_t>(whole.data() - view.data());
+        out.append(input, last, pos - last);
+        out += fn(match);
+        last = pos + whole.size();
+    }
+    out.append(input, last, std::string::npos);
+    return out;
 }
 
 void replace_all(std::string& text, std::string_view from, std::string_view to)
@@ -865,8 +910,8 @@ std::string normalize_web(std::string text)
     };
     text = regex_sub(text, email, [&](const std::smatch& m) { return spell(m.str()); });
     text = regex_sub(text, url, [&](const std::smatch& m) { return spell(m.str()); });
-    static const std::regex hashtag(R"(#([A-Za-zА-Яа-яЄєІіЇїҐґ0-9_]+))");
-    text = regex_sub(text, hashtag, [](const std::smatch& m) { return "хештег " + m[1].str(); });
+    text =
+        ctre_sub<R"(#([A-Za-zА-Яа-яЄєІіЇїҐґ0-9_]+))">(text, [](const auto& m) { return "хештег " + cap_string<1>(m); });
     static const std::regex handle(R"((^|[^A-Za-zА-Яа-яЄєІіЇїҐґ0-9._%+-])@([A-Za-z][A-Za-z0-9_]{1,30}))");
     return regex_sub(text, handle, [](const std::smatch& m) { return m[1].str() + "акаунт " + m[2].str(); });
 }
@@ -885,15 +930,6 @@ std::string normalize_dates(std::string text, DateStyle style)
                                                             "жовтня",
                                                             "листопада",
                                                             "грудня"};
-    static const std::regex numeric(R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)");
-    static const std::regex slash(R"(\b(\d{1,2})/(\d{1,2})/(\d{4})\b)");
-    static const std::regex iso(R"(\b(\d{4})-(\d{2})-(\d{2})\b)");
-    static const std::regex numeric_range(
-        R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\s*[-–—]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\b)");
-    static const std::regex iso_range(R"(\b(\d{4})-(\d{2})-(\d{2})\s*[-–—]\s*(\d{4})-(\d{2})-(\d{2})\b)");
-    static const std::regex year_in_case(R"((^|[^\d])(\d{3,4})\s+(році|року|рік)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex ordinal_year_suffix(R"((^|[^\d])(\d{3,4})[-–—](го|му|й|м)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex year_r(R"(\b(\d{3,4})\s*р\.(?![а-яіїєґ]))");
     auto month_name = [](std::string token) {
         replace_all(token, ".", "");
         token = lower_text(token);
@@ -917,6 +953,8 @@ std::string normalize_dates(std::string text, DateStyle style)
                number_to_ordinal_words(parse_ull(m[2].str()), "gen") + " " + month_name(m[3].str()) + " " +
                number_to_ordinal_words(parse_ull(m[4].str()), "gen") + " року";
     });
+    static const std::regex numeric_range(
+        R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\s*[-–—]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\b)");
     text = regex_sub(text, numeric_range, [&](const std::smatch& m) {
         const int m1 = parse_int(m[2].str());
         const int m2 = parse_int(m[5].str());
@@ -927,6 +965,7 @@ std::string normalize_dates(std::string text, DateStyle style)
                number_to_ordinal_words(parse_ull(m[3].str()), "gen") + " року " + day_words(m[4].str()) + " " +
                std::string(months[m2 - 1]) + " " + number_to_ordinal_words(parse_ull(m[6].str()), "gen") + " року";
     });
+    static const std::regex iso_range(R"(\b(\d{4})-(\d{2})-(\d{2})\s*[-–—]\s*(\d{4})-(\d{2})-(\d{2})\b)");
     text = regex_sub(text, iso_range, [&](const std::smatch& m) {
         const int m1 = parse_int(m[2].str());
         const int m2 = parse_int(m[5].str());
@@ -937,29 +976,29 @@ std::string normalize_dates(std::string text, DateStyle style)
                number_to_ordinal_words(parse_ull(m[1].str()), "gen") + " року " + day_words(m[6].str()) + " " +
                std::string(months[m2 - 1]) + " " + number_to_ordinal_words(parse_ull(m[4].str()), "gen") + " року";
     });
-    text = regex_sub(text, numeric, [&](const std::smatch& m) {
-        const int month = parse_int(m[2].str());
+    text = ctre_sub<R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)">(text, [&](const auto& m) {
+        const int month = parse_int(cap<2>(m));
         if (month < 1 || month > 12) {
-            return m.str();
+            return whole_string(m);
         }
-        return day_words(m[1].str()) + " " + std::string(months[month - 1]) + " " +
-               number_to_ordinal_words(parse_ull(m[3].str()), "gen") + " року";
+        return day_words(cap<1>(m)) + " " + std::string(months[month - 1]) + " " +
+               number_to_ordinal_words(parse_ull(cap<3>(m)), "gen") + " року";
     });
-    text = regex_sub(text, slash, [&](const std::smatch& m) {
-        const int month = parse_int(m[2].str());
+    text = ctre_sub<R"(\b(\d{1,2})/(\d{1,2})/(\d{4})\b)">(text, [&](const auto& m) {
+        const int month = parse_int(cap<2>(m));
         if (month < 1 || month > 12) {
-            return m.str();
+            return whole_string(m);
         }
-        return day_words(m[1].str()) + " " + std::string(months[month - 1]) + " " +
-               number_to_ordinal_words(parse_ull(m[3].str()), "gen") + " року";
+        return day_words(cap<1>(m)) + " " + std::string(months[month - 1]) + " " +
+               number_to_ordinal_words(parse_ull(cap<3>(m)), "gen") + " року";
     });
-    text = regex_sub(text, iso, [&](const std::smatch& m) {
-        const int month = parse_int(m[2].str());
+    text = ctre_sub<R"(\b(\d{4})-(\d{2})-(\d{2})\b)">(text, [&](const auto& m) {
+        const int month = parse_int(cap<2>(m));
         if (month < 1 || month > 12) {
-            return m.str();
+            return whole_string(m);
         }
-        return day_words(m[3].str()) + " " + std::string(months[month - 1]) + " " +
-               number_to_ordinal_words(parse_ull(m[1].str()), "gen") + " року";
+        return day_words(cap<3>(m)) + " " + std::string(months[month - 1]) + " " +
+               number_to_ordinal_words(parse_ull(cap<1>(m)), "gen") + " року";
     });
     text = regex_sub(text, date_spelled_re(), [](const std::smatch& m) {
         auto token = m[2].str();
@@ -977,19 +1016,20 @@ std::string normalize_dates(std::string text, DateStyle style)
         return number_to_ordinal_words(parse_ull(m[1].str()), "gen") + " " + month + " " +
                number_to_ordinal_words(parse_ull(m[3].str()), "gen") + " року";
     });
-    text = regex_sub(text, year_in_case, [](const std::smatch& m) {
+    text = ctre_sub<R"((^|[^\d])(\d{3,4})\s+(році|року|рік)(?![А-Яа-яЄєІіЇїҐґ]))">(text, [](const auto& m) {
         static const std::unordered_map<std::string, std::string_view> forms = {
             {"рік", "nom_m"}, {"року", "gen"}, {"році", "prep"}};
-        return m[1].str() + number_to_ordinal_words(parse_ull(m[2].str()), forms.at(m[3].str())) + " " + m[3].str();
+        const auto form = cap_string<3>(m);
+        return cap_string<1>(m) + number_to_ordinal_words(parse_ull(cap<2>(m)), forms.at(form)) + " " + form;
     });
+    static const std::regex ordinal_year_suffix(R"((^|[^\d])(\d{3,4})[-–—](го|му|й|м)(?![А-Яа-яЄєІіЇїҐґ]))");
     text = regex_sub(text, ordinal_year_suffix, [](const std::smatch& m) {
         static const std::unordered_map<std::string, std::string_view> forms = {
             {"го", "gen"}, {"му", "dat"}, {"й", "nom_m"}, {"м", "prep"}};
         return m[1].str() + number_to_ordinal_words(parse_ull(m[2].str()), forms.at(m[3].str()));
     });
-    return regex_sub(text, year_r, [](const std::smatch& m) {
-        return number_to_ordinal_words(parse_ull(m[1].str()), "nom_m") + " рік";
-    });
+    return ctre_sub<R"(\b(\d{3,4})\s*р\.(?![а-яіїєґ]))">(
+        text, [](const auto& m) { return number_to_ordinal_words(parse_ull(cap<1>(m)), "nom_m") + " рік"; });
 }
 
 int roman_to_int(std::string_view s)
@@ -1008,8 +1048,7 @@ int roman_to_int(std::string_view s)
 
 bool valid_roman(std::string_view s)
 {
-    static const std::regex re(R"(^M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})$)");
-    return std::regex_match(std::string(s), re);
+    return ctre::match<R"(M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3}))">(s);
 }
 
 std::string normalize_ordinals(std::string text)
@@ -1572,12 +1611,11 @@ std::string normalize_fractions(std::string text)
     for (const auto& [sym, nd] : vulgar) {
         replace_all(text, sym, say_fraction(nd.first, nd.second));
     }
-    static const std::regex re(R"(\b(\d+)/(\d+)\b)");
-    return regex_sub(text, re, [](const std::smatch& m) {
-        const auto numerator = try_parse_ull(m[1].str());
-        const auto denominator = try_parse_ull(m[2].str());
+    return ctre_sub<R"(\b(\d+)/(\d+)\b)">(text, [](const auto& m) {
+        const auto numerator = try_parse_ull(cap<1>(m));
+        const auto denominator = try_parse_ull(cap<2>(m));
         if (!numerator || !denominator) {
-            return m.str();
+            return whole_string(m);
         }
         return say_fraction(*numerator, *denominator);
     });
@@ -1585,13 +1623,12 @@ std::string normalize_fractions(std::string text)
 
 std::string normalize_percent(std::string text)
 {
-    static const std::regex re(R"((\d+(?:[.,]\d+)?)\s*%)");
-    return regex_sub(text, re, [](const std::smatch& m) {
-        auto num = m[1].str();
+    return ctre_sub<R"((\d+(?:[.,]\d+)?)\s*%)">(text, [](const auto& m) {
+        auto num = cap_string<1>(m);
         const auto pos = num.find_first_of(".,");
         if (pos != std::string::npos) {
             auto words = decimal_to_words(std::string_view(num).substr(0, pos), std::string_view(num).substr(pos + 1));
-            return words.empty() ? m.str() : words + " відсотка";
+            return words.empty() ? whole_string(m) : words + " відсотка";
         }
         const auto n = try_parse_ull(num);
         if (!n) {
@@ -1710,21 +1747,19 @@ std::string normalize_symbols(std::string text)
 
 std::string normalize_math(std::string text)
 {
-    static const std::regex re(R"((\d)\s*\+\s*(?=\d))");
-    return regex_sub(text, re, [](const std::smatch& m) { return m[1].str() + " плюс "; });
+    return ctre_sub<R"((\d)\s*\+\s*(?=\d))">(text, [](const auto& m) { return cap_string<1>(m) + " плюс "; });
 }
 
 std::string normalize_decimals(std::string text)
 {
-    static const std::regex re(R"(\b(\d+),(\d+)\b)");
-    return regex_sub(text, re, [](const std::smatch& m) {
-        const auto fp = m[2].str();
+    return ctre_sub<R"(\b(\d+),(\d+)\b)">(text, [](const auto& m) {
+        const auto ip = cap_string<1>(m);
+        const auto fp = cap_string<2>(m);
         if (fp.find_first_not_of('0') == std::string::npos) {
-            return number_digits_or_words(m[1].str());
+            return number_digits_or_words(ip);
         }
-        auto words = decimal_to_words(m[1].str(), fp);
-        return words.empty() ? number_digits_or_words(m[1].str()) + " кома " + number_to_words_digit_by_digit(fp)
-                             : words;
+        auto words = decimal_to_words(ip, fp);
+        return words.empty() ? number_digits_or_words(ip) + " кома " + number_to_words_digit_by_digit(fp) : words;
     });
 }
 
@@ -2195,23 +2230,21 @@ std::string read_dotted(std::string_view num)
 
 std::string normalize_versions(std::string text)
 {
-    static const std::regex version(R"(\b([A-Za-z][\w-]*\s+)(\d+(?:\.\d+)+)\b)");
-    static const std::regex ip(R"(\b\d+(?:\.\d+){2,}\b)");
-    text = regex_sub(text, version, [](const std::smatch& m) { return m[1].str() + read_dotted(m[2].str()); });
-    return regex_sub(text, ip, [](const std::smatch& m) { return read_dotted(m.str()); });
+    text = ctre_sub<R"(\b([A-Za-z][A-Za-z0-9_\-]*\s+)(\d+(?:\.\d+)+)\b)">(
+        text, [](const auto& m) { return cap_string<1>(m) + read_dotted(cap<2>(m)); });
+    return ctre_sub<R"(\b\d+(?:\.\d+){2,}\b)">(text, [](const auto& m) { return read_dotted(cap<0>(m)); });
 }
 
 std::string normalize_negatives(std::string text)
 {
-    static const std::regex re(R"((^|[\s(\[])[-−](\d))");
-    return regex_sub(text, re, [](const std::smatch& m) { return m[1].str() + "мінус " + m[2].str(); });
+    return ctre_sub<R"((^|[\s(\[])[\-−](\d))">(
+        text, [](const auto& m) { return cap_string<1>(m) + "мінус " + cap_string<2>(m); });
 }
 
 std::string normalize_text_with_numbers(std::string text)
 {
-    static const std::regex re(R"(\b\d+\b)");
-    return regex_sub(text, re, [](const std::smatch& m) {
-        const auto digits = m.str();
+    return ctre_sub<R"(\b\d+\b)">(text, [](const auto& m) {
+        const auto digits = cap_string<0>(m);
         if (digits.size() > 1 && digits[0] == '0') {
             return number_to_words_digit_by_digit(digits);
         }
