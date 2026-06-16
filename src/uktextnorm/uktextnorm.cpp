@@ -2528,7 +2528,7 @@ std::string expand_abbreviations(std::string_view text)
     return out;
 }
 
-std::string cyrilize(std::string_view text)
+std::string transliterate_to_cyrillic(std::string_view text)
 {
     std::string out;
     for (std::size_t i = 0; i < text.size();) {
@@ -2568,9 +2568,14 @@ std::string cyrilize(std::string_view text)
     return out;
 }
 
+std::string cyrilize(std::string_view text)
+{
+    return transliterate_to_cyrillic(text);
+}
+
 std::string cyrrilize(std::string_view text)
 {
-    return cyrilize(text);
+    return transliterate_to_cyrillic(text);
 }
 
 NormalizeOptions options_for_preset(NormalizePreset preset)
@@ -2718,7 +2723,7 @@ std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& 
     }
     if (options.transliterate_latin) {
         if (has_ascii_alpha(text)) {
-            text = cyrilize(text);
+            text = transliterate_to_cyrillic(text);
         }
     }
     return trim_spaces(std::move(text));

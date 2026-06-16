@@ -7,10 +7,11 @@ import normalize_uk as nuk
 def main() -> None:
     print(nuk.number_to_words(1234567))
     print(nuk.number_to_ordinal_words(21, "nom_f"))
+    print(nuk.transliterate_to_cyrillic("Google shop"))
     print(nuk.normalize_ukrainian("01.05.2024, +380 67 123-45-67, 5 кг"))
 
     text = "Пишіть на test.user@example.com. Зустріч о 10:30."
-    print([sentence.text for sentence in nuk.sentenize(text)])
+    print([sentence.text for sentence in nuk.split_sentences(text)])
     print([token.text for token in nuk.tokenize("П'ять зв'язків.")])
 
 

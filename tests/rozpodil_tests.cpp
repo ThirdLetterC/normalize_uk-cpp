@@ -35,6 +35,16 @@ void expect_eq(const std::string& name,
     }
 }
 
+void expect_eq(const std::string& name,
+               const std::vector<rozpodil::Substring>& actual,
+               const std::vector<rozpodil::Substring>& expected)
+{
+    if (actual != expected) {
+        ++failures;
+        std::cerr << name << ": split vectors differ\n";
+    }
+}
+
 std::vector<Expected> expected_chunks(const std::string& text, const std::vector<std::string>& chunks)
 {
     std::vector<Expected> out;
@@ -59,13 +69,16 @@ void expect_tokens(const std::string& name, const std::string& text, const std::
 
 void expect_sents(const std::string& name, const std::string& text, const std::vector<std::string>& chunks)
 {
-    expect_eq(name, rozpodil::sentenize(text), expected_chunks(text, chunks));
+    expect_eq(name, rozpodil::split_sentences(text), expected_chunks(text, chunks));
 }
 
 } // namespace
 
 int main()
 {
+    const std::string two_sentences = "Привіт! Це тест.";
+    expect_eq("sentenize alias", rozpodil::sentenize(two_sentences), rozpodil::split_sentences(two_sentences));
+
     const std::string apostrophes = "П'ять зв’язків і мʼясо.";
     expect_tokens("apostrophe words", apostrophes, {"П'ять", "зв’язків", "і", "мʼясо", "."});
 

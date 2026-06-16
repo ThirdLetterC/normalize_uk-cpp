@@ -15,6 +15,7 @@ struct Substring {
 };
 
 std::vector<Substring> sentenize(std::string_view text);
+std::vector<Substring> split_sentences(std::string_view text);
 std::vector<Substring> tokenize(std::string_view text);
 
 } // namespace rozpodil

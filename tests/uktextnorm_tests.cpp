@@ -110,7 +110,9 @@ int main(int argc, char** argv)
     expect_eq("case", uktextnorm::number_to_words_case(500, "gen"), "п'ятисот");
     expect_eq("abbr", uktextnorm::normalize_abbreviations("І т. д. і т. ін."), "і так далі і таке інше");
     expect_eq("acronym", uktextnorm::expand_abbreviations("СБР і НАТО"), "ес бе ер і НАТО");
-    expect_eq("cyrilize", uktextnorm::cyrilize("Google shop"), "гугле шоп");
+    expect_eq("transliterate to cyrillic", uktextnorm::transliterate_to_cyrillic("Google shop"), "гугле шоп");
+    expect_eq(
+        "cyrilize alias", uktextnorm::cyrilize("Google shop"), uktextnorm::transliterate_to_cyrillic("Google shop"));
 
     expect_eq("date", normalize_ukrainian("01.05.2024"), "перше травня дві тисячі двадцять четвертого року");
     expect_eq("time", normalize_ukrainian("Зустріч о 06:06"), "Зустріч о шість годин шість хвилин");

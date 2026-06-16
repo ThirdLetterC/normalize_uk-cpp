@@ -36,9 +36,14 @@ std::vector<Substring> copy_substrings(const std::vector<rozpodil::Substring>& c
     return out;
 }
 
+std::vector<Substring> split_sentences(std::string_view text)
+{
+    return copy_substrings(rozpodil::split_sentences(text));
+}
+
 std::vector<Substring> sentenize(std::string_view text)
 {
-    return copy_substrings(rozpodil::sentenize(text));
+    return split_sentences(text);
 }
 
 std::vector<Substring> tokenize(std::string_view text)
@@ -132,6 +137,7 @@ PYBIND11_MODULE(_normalize_uk, m)
     m.def("number_to_words_case", &uktextnorm::number_to_words_case, py::arg("n"), py::arg("grammatical_case"));
     m.def("normalize_abbreviations", &uktextnorm::normalize_abbreviations, py::arg("text"));
     m.def("expand_abbreviations", &uktextnorm::expand_abbreviations, py::arg("text"));
+    m.def("transliterate_to_cyrillic", &uktextnorm::transliterate_to_cyrillic, py::arg("text"));
     m.def("cyrilize", &uktextnorm::cyrilize, py::arg("text"));
     m.def("cyrrilize", &uktextnorm::cyrrilize, py::arg("text"));
     m.def(
@@ -160,6 +166,7 @@ PYBIND11_MODULE(_normalize_uk, m)
         py::arg("text"),
         py::arg("preset") = uktextnorm::NormalizePreset::Default);
     m.def("flag_uncertain", &uktextnorm::flag_uncertain, py::arg("text"));
+    m.def("split_sentences", &split_sentences, py::arg("text"));
     m.def("sentenize", &sentenize, py::arg("text"));
     m.def("tokenize", &tokenize, py::arg("text"));
 }

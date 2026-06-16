@@ -1020,6 +1020,11 @@ std::vector<Substring> sentenize(std::string_view text)
     return find_substrings(chunks, text, true);
 }
 
+std::vector<Substring> split_sentences(std::string_view text)
+{
+    return sentenize(text);
+}
+
 std::vector<Substring> tokenize(std::string_view text)
 {
     const auto as = atoms(text);
