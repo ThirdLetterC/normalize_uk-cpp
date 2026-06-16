@@ -329,6 +329,9 @@ int main(int argc, char** argv)
     expect_eq("tts preset",
               normalize_ukrainian("15.06.2026, +380 67 123-45-67, 5-7 кг", uktextnorm::NormalizePreset::TtsFriendly),
               normalize_ukrainian("15.06.2026, +380 67 123-45-67, 5-7 кг", tts_options));
+    expect_eq("explicit preset API",
+              uktextnorm::normalize_ukrainian_with_preset("OpenAI + ФОП", uktextnorm::NormalizePreset::SearchIndexing),
+              "OpenAI + фізична особа підприємець");
     expect_eq("preset helper conservative",
               normalize_ukrainian("OpenAI + ФОП", uktextnorm::NormalizePreset::Conservative),
               "OpenAI + ФОП");

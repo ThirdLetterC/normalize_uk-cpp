@@ -17,7 +17,11 @@ def main() -> None:
 
     text = "15.06.2026, +380 67 123-45-67, 5-7 кг"
     print(nuk.normalize_ukrainian(text, options))
-    print(nuk.normalize_ukrainian("OpenAI + ФОП", nuk.NormalizePreset.SearchIndexing))
+    print(nuk.normalize_ukrainian_with_preset("OpenAI + ФОП", nuk.NormalizePreset.SearchIndexing))
+
+    tts_options = nuk.NormalizeOptions(preset=nuk.NormalizePreset.TtsFriendly)
+    tts_options.symbol_style = nuk.SymbolStyle.Preserve
+    print(nuk.normalize_ukrainian("2 + 2, 15.06.2026", tts_options))
 
     describe_spans("Версія XXI і сума 10 PLN")
 

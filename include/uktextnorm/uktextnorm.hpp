@@ -89,6 +89,7 @@ struct NormalizeOptions {
 [[nodiscard]] std::string normalize_ukrainian(std::string_view text);
 [[nodiscard]] std::string normalize_ukrainian(std::string_view text, const NormalizeOptions& options);
 [[nodiscard]] std::string normalize_ukrainian(std::string_view text, NormalizePreset preset);
+[[nodiscard]] std::string normalize_ukrainian_with_preset(std::string_view text, NormalizePreset preset);
 [[nodiscard]] std::vector<UncertainSpan> flag_uncertain(std::string_view text);
 
 } // namespace uktextnorm

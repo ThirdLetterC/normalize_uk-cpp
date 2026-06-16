@@ -106,7 +106,8 @@ PYBIND11_MODULE(_normalize_uk, m)
         });
 
     py::class_<uktextnorm::NormalizeOptions>(m, "NormalizeOptions")
-        .def(py::init<>())
+        .def(py::init([](uktextnorm::NormalizePreset preset) { return uktextnorm::options_for_preset(preset); }),
+             py::arg("preset") = uktextnorm::NormalizePreset::Default)
         .def_readwrite("expand_known_acronyms", &uktextnorm::NormalizeOptions::expand_known_acronyms)
         .def_readwrite("spell_unknown_acronyms", &uktextnorm::NormalizeOptions::spell_unknown_acronyms)
         .def_readwrite("normalize_english_words", &uktextnorm::NormalizeOptions::normalize_english_words)
@@ -151,6 +152,13 @@ PYBIND11_MODULE(_normalize_uk, m)
         },
         py::arg("text"),
         py::arg("preset"));
+    m.def(
+        "normalize_ukrainian_with_preset",
+        [](std::string_view text, uktextnorm::NormalizePreset preset) {
+            return uktextnorm::normalize_ukrainian_with_preset(text, preset);
+        },
+        py::arg("text"),
+        py::arg("preset") = uktextnorm::NormalizePreset::Default);
     m.def("flag_uncertain", &uktextnorm::flag_uncertain, py::arg("text"));
     m.def("sentenize", &sentenize, py::arg("text"));
     m.def("tokenize", &tokenize, py::arg("text"));

@@ -2608,6 +2608,11 @@ std::string normalize_ukrainian(std::string_view input)
 
 std::string normalize_ukrainian(std::string_view input, NormalizePreset preset)
 {
+    return normalize_ukrainian_with_preset(input, preset);
+}
+
+std::string normalize_ukrainian_with_preset(std::string_view input, NormalizePreset preset)
+{
     return normalize_ukrainian(input, options_for_preset(preset));
 }
 
