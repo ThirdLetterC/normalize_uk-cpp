@@ -305,6 +305,12 @@ std::string cap_string(const Match& match)
     return std::string(cap<Index>(match));
 }
 
+template <std::size_t Index = 0, class Match>
+std::size_t cap_pos(std::string_view input, const Match& match)
+{
+    return static_cast<std::size_t>(cap<Index>(match).data() - input.data());
+}
+
 template <ctll::fixed_string Pattern, class Fn>
 std::string ctre_sub(std::string input, Fn fn)
 {
@@ -328,6 +334,14 @@ std::string ctre_sub(std::string input, Fn fn)
     }
     out.append(input, last, std::string::npos);
     return out;
+}
+
+template <ctll::fixed_string Pattern, class Fn>
+void ctre_each(std::string_view input, Fn fn)
+{
+    for (const auto& match : ctre::search_all<Pattern>(input)) {
+        fn(match);
+    }
 }
 
 void replace_all(std::string& text, std::string_view from, std::string_view to)
@@ -1061,45 +1075,43 @@ std::string normalize_ordinals(std::string text)
                                                                                   {"у", "acc_f"},
                                                                                   {"е", "nom_n"},
                                                                                   {"х", "pl"}};
-    static const std::regex suffix(R"((\d+)[-–—](го|му|й|м|а|у|е|х)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex roman_century_range(
-        R"((^|[^A-Za-z])([MDCLXVI]{1,6})\s*[-–—]\s*([MDCLXVI]{1,6})\s*(?:ст\.|століття)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex roman_section_range(
-        R"((^|[^A-Za-z])([MDCLXVI]{1,6})\s*[-–—]\s*([MDCLXVI]{1,6})\s*(розд\.|розділ)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex roman_century(R"((^|[^A-Za-z])([MDCLXVI]{1,6})\s*(?:ст\.|століття)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex roman(R"(\b[MDCLXVI]{2,}\b)");
     static const std::unordered_set<std::string> stop = {
         "CD", "DVD", "MD", "DC", "MC", "MI", "MM", "DI", "DIV", "MIX", "CIV", "LCD"};
-    text = regex_sub(text, suffix, [&](const std::smatch& m) {
-        return number_to_ordinal_words(parse_ull(m[1].str()), suffix_form.at(m[2].str()));
+    text = ctre_sub<R"((\d+)(?:-|–|—)(го|му|й|м|а|у|е|х)(?![А-Яа-яЄєІіЇїҐґ]))">(text, [&](const auto& m) {
+        return number_to_ordinal_words(parse_ull(cap<1>(m)), suffix_form.at(cap_string<2>(m)));
     });
-    text = regex_sub(text, roman_century_range, [](const std::smatch& m) {
-        const auto start = m[2].str();
-        const auto stop = m[3].str();
-        if (!valid_roman(start) || !valid_roman(stop)) {
-            return m.str();
-        }
-        return m[1].str() + number_to_ordinal_words(roman_to_int(start), "nom_n") + " " +
-               number_to_ordinal_words(roman_to_int(stop), "nom_n") + " століття";
-    });
-    text = regex_sub(text, roman_section_range, [](const std::smatch& m) {
-        const auto start = m[2].str();
-        const auto stop = m[3].str();
-        if (!valid_roman(start) || !valid_roman(stop)) {
-            return m.str();
-        }
-        return m[1].str() + number_to_ordinal_words(roman_to_int(start), "nom_m") + " " +
-               number_to_ordinal_words(roman_to_int(stop), "nom_m") + " розділ";
-    });
-    text = regex_sub(text, roman_century, [](const std::smatch& m) {
-        const auto tok = m[2].str();
-        if (!valid_roman(tok)) {
-            return m.str();
-        }
-        return m[1].str() + number_to_ordinal_words(roman_to_int(tok), "nom_n") + " століття";
-    });
-    return regex_sub(text, roman, [&](const std::smatch& m) {
-        const auto tok = m.str();
+    text = ctre_sub<
+        R"((^|[^A-Za-z])([MDCLXVI]{1,6})\s*(?:-|–|—)\s*([MDCLXVI]{1,6})\s*(?:ст\.|століття)(?![А-Яа-яЄєІіЇїҐґ]))">(
+        text, [](const auto& m) {
+            const auto start = cap_string<2>(m);
+            const auto stop = cap_string<3>(m);
+            if (!valid_roman(start) || !valid_roman(stop)) {
+                return whole_string(m);
+            }
+            return cap_string<1>(m) + number_to_ordinal_words(roman_to_int(start), "nom_n") + " " +
+                   number_to_ordinal_words(roman_to_int(stop), "nom_n") + " століття";
+        });
+    text = ctre_sub<
+        R"((^|[^A-Za-z])([MDCLXVI]{1,6})\s*(?:-|–|—)\s*([MDCLXVI]{1,6})\s*(розд\.|розділ)(?![А-Яа-яЄєІіЇїҐґ]))">(
+        text, [](const auto& m) {
+            const auto start = cap_string<2>(m);
+            const auto stop = cap_string<3>(m);
+            if (!valid_roman(start) || !valid_roman(stop)) {
+                return whole_string(m);
+            }
+            return cap_string<1>(m) + number_to_ordinal_words(roman_to_int(start), "nom_m") + " " +
+                   number_to_ordinal_words(roman_to_int(stop), "nom_m") + " розділ";
+        });
+    text =
+        ctre_sub<R"((^|[^A-Za-z])([MDCLXVI]{1,6})\s*(?:ст\.|століття)(?![А-Яа-яЄєІіЇїҐґ]))">(text, [](const auto& m) {
+            const auto tok = cap_string<2>(m);
+            if (!valid_roman(tok)) {
+                return whole_string(m);
+            }
+            return cap_string<1>(m) + number_to_ordinal_words(roman_to_int(tok), "nom_n") + " століття";
+        });
+    return ctre_sub<R"(\b[MDCLXVI]{2,}\b)">(text, [&](const auto& m) {
+        const auto tok = whole_string(m);
         if (stop.contains(tok) || !valid_roman(tok)) {
             return tok;
         }
@@ -1139,17 +1151,13 @@ std::string normalize_quarters(std::string text)
 
 std::string normalize_ranges(std::string text, RangeStyle style)
 {
-    static const std::regex years(R"(\b(\d{3,4})\s*[-–—]\s*(\d{3,4})\s*(?:рр\.?|роки)(?![а-яіїєґ]))");
-    static const std::regex percents(R"(\b(\d+)\s*[-–—]\s*(\d+)\s*%)");
-    static const std::regex page_range(R"(\b(?:с\.|стор\.)\s*(\d+)\s*[-–—]\s*(\d+)\b)");
-    static const std::regex num_range(R"((\d)\s*[–—]\s*(?=\d))");
-    text = regex_sub(text, years, [&](const std::smatch& m) {
+    text = ctre_sub<R"(\b(\d{3,4})\s*(?:-|–|—)\s*(\d{3,4})\s*(?:рр\.?|роки)(?![а-яіїєґ]))">(text, [&](const auto& m) {
         if (style == RangeStyle::FromTo) {
-            return "від " + number_to_ordinal_words(parse_ull(m[1].str()), "gen") + " до " +
-                   number_to_ordinal_words(parse_ull(m[2].str()), "gen") + " років";
+            return "від " + number_to_ordinal_words(parse_ull(cap<1>(m)), "gen") + " до " +
+                   number_to_ordinal_words(parse_ull(cap<2>(m)), "gen") + " років";
         }
-        return number_to_ordinal_words(parse_ull(m[1].str()), "nom_m") + " " +
-               number_to_ordinal_words(parse_ull(m[2].str()), "nom_m") + " роки";
+        return number_to_ordinal_words(parse_ull(cap<1>(m)), "nom_m") + " " +
+               number_to_ordinal_words(parse_ull(cap<2>(m)), "nom_m") + " роки";
     });
     text = regex_sub(text, range_units_re(), [&](const std::smatch& m) {
         const auto& meas = measurements().at(m[4].str());
@@ -1160,19 +1168,19 @@ std::string normalize_ranges(std::string text, RangeStyle style)
         return m[1].str() + number_to_words(parse_ull(m[2].str())) + " " + number_to_words(parse_ull(m[3].str())) +
                " " + plural(parse_ull(m[3].str()), {meas.one, meas.few, meas.many});
     });
-    text = regex_sub(text, percents, [&](const std::smatch& m) {
-        const auto hi = parse_ull(m[2].str());
+    text = ctre_sub<R"(\b(\d+)\s*(?:-|–|—)\s*(\d+)\s*%)">(text, [&](const auto& m) {
+        const auto hi = parse_ull(cap<2>(m));
         if (style == RangeStyle::FromTo) {
-            return "від " + number_to_words_case(parse_ull(m[1].str()), "gen") + " до " +
+            return "від " + number_to_words_case(parse_ull(cap<1>(m)), "gen") + " до " +
                    number_to_words_case(hi, "gen") + " відсотків";
         }
-        return number_to_words(parse_ull(m[1].str())) + " " + number_to_words(hi) + " " +
+        return number_to_words(parse_ull(cap<1>(m))) + " " + number_to_words(hi) + " " +
                plural(hi, {"відсоток", "відсотки", "відсотків"});
     });
-    text = regex_sub(text, page_range, [](const std::smatch& m) {
-        return "сторінки " + number_to_words(parse_ull(m[1].str())) + " " + number_to_words(parse_ull(m[2].str()));
+    text = ctre_sub<R"(\b(?:с\.|стор\.)\s*(\d+)\s*(?:-|–|—)\s*(\d+)\b)">(text, [](const auto& m) {
+        return "сторінки " + number_to_words(parse_ull(cap<1>(m))) + " " + number_to_words(parse_ull(cap<2>(m)));
     });
-    return regex_sub(text, num_range, [](const std::smatch& m) { return m[1].str() + " "; });
+    return ctre_sub<R"((\d)\s*[–—]\s*(?=\d))">(text, [](const auto& m) { return cap_string<1>(m) + " "; });
 }
 
 std::string normalize_addresses(std::string text)
@@ -1207,9 +1215,8 @@ std::string normalize_addresses(std::string text)
 
 std::string normalize_number_groups(std::string text)
 {
-    static const std::regex re(R"(\b\d{1,3}(?: \d{3})+\b)");
-    return regex_sub(text, re, [](const std::smatch& m) {
-        auto s = m.str();
+    return ctre_sub<R"(\b\d{1,3}(?: \d{3})+\b)">(text, [](const auto& m) {
+        auto s = whole_string(m);
         replace_all(s, " ", "");
         return s;
     });
@@ -1548,31 +1555,28 @@ std::string minutes_words(int m, const Forms& forms = {"хвилина", "хви
 
 std::string normalize_time(std::string text)
 {
-    static const std::regex hms(R"((^|[^\d:])(\d{1,2}):([0-5]\d):([0-5]\d)(?![\d:]))");
-    static const std::regex hour_mark(R"((^|[^А-Яа-яЄєІіЇїҐґ\d])(\d{1,2})[-–—]?(?:й|ій|а|ої)(?![А-Яа-яЄєІіЇїҐґ]))");
-    static const std::regex hm_part(
-        R"((^|[^\d:])(\d{1,2}):([0-5]\d)\s+(ранку|дня|вечора|ночі)(?![А-Яа-яЄєІіЇїҐґ\d:]))");
-    static const std::regex hm(R"((^|[^\d:])(\d{1,2}):([0-5]\d)(?![\d:]))");
-    text = regex_sub(text, hms, [](const std::smatch& m) {
-        return m[1].str() + hours_words(parse_int(m[2].str())) + " " + minutes_words(parse_int(m[3].str())) + " " +
-               minutes_words(parse_int(m[4].str()), {"секунда", "секунди", "секунд"});
+    text = ctre_sub<R"((^|[^\d:])(\d{1,2}):([0-5]\d):([0-5]\d)(?![\d:]))">(text, [](const auto& m) {
+        return cap_string<1>(m) + hours_words(parse_int(cap<2>(m))) + " " + minutes_words(parse_int(cap<3>(m))) + " " +
+               minutes_words(parse_int(cap<4>(m)), {"секунда", "секунди", "секунд"});
     });
-    text = regex_sub(text, hour_mark, [](const std::smatch& m) {
-        return m[1].str() + number_to_ordinal_words(parse_ull(m[2].str()), "nom_f") + " година";
-    });
-    text = regex_sub(text, hm_part, [](const std::smatch& m) {
-        const int h = parse_int(m[2].str());
-        const int mn = parse_int(m[3].str());
-        std::string out = m[1].str() + hours_words(h);
-        if (mn) {
-            out += " " + minutes_words(mn);
-        }
-        return out + " " + m[4].str();
-    });
-    return regex_sub(text, hm, [](const std::smatch& m) {
-        const int h = parse_int(m[2].str());
-        const int mn = parse_int(m[3].str());
-        std::string out = m[1].str() + hours_words(h);
+    text = ctre_sub<R"((^|[^А-Яа-яЄєІіЇїҐґ\d])(\d{1,2})(?:-|–|—)?(?:й|ій|а|ої)(?![А-Яа-яЄєІіЇїҐґ]))">(
+        text, [](const auto& m) {
+            return cap_string<1>(m) + number_to_ordinal_words(parse_ull(cap<2>(m)), "nom_f") + " година";
+        });
+    text = ctre_sub<R"((^|[^\d:])(\d{1,2}):([0-5]\d)\s+(ранку|дня|вечора|ночі)(?![А-Яа-яЄєІіЇїҐґ\d:]))">(
+        text, [](const auto& m) {
+            const int h = parse_int(cap<2>(m));
+            const int mn = parse_int(cap<3>(m));
+            std::string out = cap_string<1>(m) + hours_words(h);
+            if (mn) {
+                out += " " + minutes_words(mn);
+            }
+            return out + " " + cap_string<4>(m);
+        });
+    return ctre_sub<R"((^|[^\d:])(\d{1,2}):([0-5]\d)(?![\d:]))">(text, [](const auto& m) {
+        const int h = parse_int(cap<2>(m));
+        const int mn = parse_int(cap<3>(m));
+        std::string out = cap_string<1>(m) + hours_words(h);
         if (mn) {
             out += " " + minutes_words(mn);
         }
@@ -1671,11 +1675,9 @@ std::string normalize_medical(std::string text)
     static const std::regex pressure(R"((^|[^\d.,])(\d{2,3})\s*/\s*(\d{2,3})\s*мм\s*рт\.?\s*ст\.?)", std::regex::icase);
     static const std::regex labelled_pressure(
         R"((^|[^А-Яа-яЄєІіЇїҐґ\d])(тиск\s+)(\d{2,3})\s*/\s*(\d{2,3})\s*мм\s*рт\.?\s*ст\.?)", std::regex::icase);
-    static const std::regex temp(R"((^|[^\d.,])(\d+(?:[.,]\d+)?)\s*°\s*([CСF])\b)");
     static const std::regex frequency(
         R"((^|[^А-Яа-яЄєІіЇїҐґ\d])(\d+)\s*(?:р\.|раз(?:и|ів)?)(\s+на\s+(?:день|добу|тиждень|місяць))(?![А-Яа-яЄєІіЇїҐґ]))",
         std::regex::icase);
-    static const std::regex package_number(R"((^|[^А-Яа-яЄєІіЇїҐґ\d])№\s*(\d{1,4})(?![\d/]))");
     text = regex_sub(text, concentration, [](const std::smatch& m) {
         const auto from = lower_text(m[3].str());
         const auto to = lower_text(m[4].str());
@@ -1690,8 +1692,8 @@ std::string normalize_medical(std::string text)
         return m[1].str() + number_to_words(parse_ull(m[2].str())) + " на " + number_to_words(parse_ull(m[3].str())) +
                " міліметрів ртутного стовпа";
     });
-    text = regex_sub(text, temp, [](const std::smatch& m) {
-        const auto num = m[2].str();
+    text = ctre_sub<R"((^|[^\d.,])(\d+(?:[.,]\d+)?)\s*°\s*([CСF])\b)">(text, [](const auto& m) {
+        const auto num = cap_string<2>(m);
         std::string words;
         if (const auto pos = num.find_first_of(".,"); pos != std::string::npos) {
             words = decimal_to_words(std::string_view(num).substr(0, pos), std::string_view(num).substr(pos + 1)) +
@@ -1700,16 +1702,15 @@ std::string normalize_medical(std::string text)
             const auto n = parse_ull(num);
             words = number_to_words(n) + " " + plural(n, {"градус", "градуси", "градусів"});
         }
-        const auto scale = m[3].str();
-        return m[1].str() + words + (scale == "F" ? " фаренгейта" : " цельсія");
+        const auto scale = cap_string<3>(m);
+        return cap_string<1>(m) + words + (scale == "F" ? " фаренгейта" : " цельсія");
     });
     text = regex_sub(text, frequency, [](const std::smatch& m) {
         const auto n = parse_ull(m[2].str());
         return m[1].str() + number_to_words(n) + " " + plural(n, {"раз", "рази", "разів"}) + m[3].str();
     });
-    return regex_sub(text, package_number, [](const std::smatch& m) {
-        return m[1].str() + "номер " + number_to_words(parse_ull(m[2].str()));
-    });
+    return ctre_sub<R"((^|[^А-Яа-яЄєІіЇїҐґ\d])№\s*(\d{1,4})(?![\d/]))">(
+        text, [](const auto& m) { return cap_string<1>(m) + "номер " + number_to_words(parse_ull(cap<2>(m))); });
 }
 
 std::string normalize_symbols(std::string text)
@@ -1949,14 +1950,11 @@ std::string finance_amount_words(std::string amount, const FinanceUnit& unit)
 
 std::string normalize_finance(std::string text)
 {
-    static const std::regex pair(R"(\b(BTC|ETH|USDT|BNB|USD|EUR|GBP|UAH)/(BTC|ETH|USDT|BNB|USD|EUR|GBP|UAH)\b)");
-    static const std::regex amount(R"((^|[^\wА-Яа-яЄєІіЇїҐґ])(\d+(?:[.,]\d+)?)\s*(BTC|ETH|USDT|BNB)\b)");
-    text = regex_sub(text, pair, [](const std::smatch& m) {
-        return finance_unit_many(m[1].str()) + " до " + finance_unit_many(m[2].str());
-    });
-    return regex_sub(text, amount, [](const std::smatch& m) {
-        const auto& unit = finance_units().at(m[3].str());
-        return m[1].str() + finance_amount_words(m[2].str(), unit);
+    text = ctre_sub<R"(\b(BTC|ETH|USDT|BNB|USD|EUR|GBP|UAH)/(BTC|ETH|USDT|BNB|USD|EUR|GBP|UAH)\b)">(
+        text, [](const auto& m) { return finance_unit_many(cap<1>(m)) + " до " + finance_unit_many(cap<2>(m)); });
+    return ctre_sub<R"((^|[^\wА-Яа-яЄєІіЇїҐґ])(\d+(?:[.,]\d+)?)\s*(BTC|ETH|USDT|BNB)\b)">(text, [](const auto& m) {
+        const auto& unit = finance_units().at(cap_string<3>(m));
+        return cap_string<1>(m) + finance_amount_words(cap_string<2>(m), unit);
     });
 }
 
@@ -1992,9 +1990,8 @@ std::string normalize_phone_number(std::string_view phone, PhoneStyle style)
 
 std::string normalize_text_with_phone_numbers(std::string text, PhoneStyle style)
 {
-    static const std::regex re(R"((^|[^\d])((?:\+?380|0)\s*\(?\d{2}\)?[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{2})(?!\d))");
-    return regex_sub(
-        text, re, [&](const std::smatch& m) { return m[1].str() + normalize_phone_number(m[2].str(), style); });
+    return ctre_sub<R"((^|[^\d])((?:\+?380|0)\s*\(?\d{2}\)?[\-\s]?\d{3}[\-\s]?\d{2}[\-\s]?\d{2})(?!\d))">(
+        text, [&](const auto& m) { return cap_string<1>(m) + normalize_phone_number(cap<2>(m), style); });
 }
 
 std::string spell_identifier_letters(std::string_view letters)
@@ -2748,19 +2745,18 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
         }
     };
     std::string input(text);
-    static const std::regex numeric_date(R"((^|[^\d])(\d{1,2})\.(\d{1,2})\.(\d{3,4})(?![\d]))");
-    for (std::sregex_iterator it(input.begin(), input.end(), numeric_date), end; it != end; ++it) {
-        const auto day = parse_int((*it)[2].str());
-        const auto month = parse_int((*it)[3].str());
+    ctre_each<R"((^|[^\d])(\d{1,2})\.(\d{1,2})\.(\d{3,4})(?![\d]))">(input, [&](const auto& m) {
+        const auto day = parse_int(cap<2>(m));
+        const auto month = parse_int(cap<3>(m));
         if (day < 1 || day > 31 || month < 1 || month > 12) {
-            const auto s = static_cast<std::size_t>((*it).position(2));
+            const auto s = cap_pos<2>(input, m);
             add(s,
-                s + (*it).length(2) + 1 + (*it).length(3) + 1 + (*it).length(4),
+                s + cap<2>(m).size() + 1 + cap<3>(m).size() + 1 + cap<4>(m).size(),
                 "invalid or ambiguous numeric date",
                 UncertaintyCategory::Date,
                 UncertaintySeverity::Error);
         }
-    }
+    });
     static const std::unordered_map<std::string, std::string> multisense = {
         {"р", "рік / рядок / річка"},
         {"м", "метр / місто"},
@@ -2839,19 +2835,19 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
             UncertaintyCategory::ForeignWord,
             UncertaintySeverity::Info);
     }
-    static const std::regex roman(R"(\b[MDCLXVI]{2,}\b)");
     static const std::unordered_set<std::string> roman_stop = {
         "CD", "DVD", "MD", "DC", "MC", "MI", "MM", "DI", "DIV", "MIX", "CIV", "LCD"};
-    for (std::sregex_iterator it(input.begin(), input.end(), roman), end; it != end; ++it) {
-        const auto w = (*it).str();
+    ctre_each<R"(\b[MDCLXVI]{2,}\b)">(input, [&](const auto& m) {
+        const auto w = whole_string(m);
         if (!roman_stop.contains(w) && valid_roman(w)) {
-            add((*it).position(),
-                (*it).position() + (*it).length(),
+            const auto s = cap_pos(input, m);
+            add(s,
+                s + cap<0>(m).size(),
                 "Roman numeral (case defaults to nominative)",
                 UncertaintyCategory::RomanNumeral,
                 UncertaintySeverity::Info);
         }
-    }
+    });
     static const std::regex identifier(
         R"((?:№\s*[A-Za-zА-Яа-яЄєІіЇїҐґ0-9]+(?:[-/][A-Za-zА-Яа-яЄєІіЇїҐґ0-9]+)+|(?:ЄДРПОУ|РНОКПП|ІПН|ЄРДР)\.?\s*[:№#]?\s*\d{6,20}|паспорт\s+[A-Za-zА-Яа-яЄєІіЇїҐґ]{2}\s*\d{6,9}|(?:картка|картку|карта|карту)\s*\d{4}[\s-]+(?:(?:\*{4}|xxxx|XXXX)[\s-]+(?:\*{4}|xxxx|XXXX)|\d{4}[\s-]+\d{4})[\s-]+\d{4}))",
         std::regex::icase);
@@ -2862,14 +2858,14 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
             UncertaintyCategory::Identifier,
             UncertaintySeverity::Info);
     }
-    static const std::regex malformed_email(R"(\b[A-Za-z0-9._%+-]+@(?:\s|$|[^\s@.]+(?:\s|$)|[^\s@]*\.\s))");
-    for (std::sregex_iterator it(input.begin(), input.end(), malformed_email), end; it != end; ++it) {
-        add((*it).position(),
-            (*it).position() + (*it).length(),
+    ctre_each<R"(\b[A-Za-z0-9._%+\-]+@(?:\s|$|[^\s@.]+(?:\s|$)|[^\s@]*\.\s))">(input, [&](const auto& m) {
+        const auto s = cap_pos(input, m);
+        add(s,
+            s + cap<0>(m).size(),
             "malformed email-like contact",
             UncertaintyCategory::Web,
             UncertaintySeverity::Warning);
-    }
+    });
     static const std::regex malformed_url(R"(\bhttps?://(?:\s|$)|\bwww\.(?:\s|$))", std::regex::icase);
     for (std::sregex_iterator it(input.begin(), input.end(), malformed_url), end; it != end; ++it) {
         add((*it).position(),
@@ -2890,69 +2886,69 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
             UncertaintyCategory::Currency,
             UncertaintySeverity::Warning);
     }
-    static const std::regex unknown_unit(
-        R"((^|[^\d.,])(\d+(?:[.,]\d+)?)\s*([A-Za-zА-Яа-яЄєІіЇїҐґ]{1,6})(?![A-Za-zА-Яа-яЄєІіЇїҐґ]))");
     static const std::unordered_set<std::string> known_unit_words = {
         "грн", "коп", "uah",  "usd",  "eur", "gbp",  "btc",  "eth", "usdt", "bnb",
         "тис", "млн", "млрд", "трлн", "рік", "року", "році", "раз", "рази", "разів"};
-    for (std::sregex_iterator it(input.begin(), input.end(), unknown_unit), end; it != end; ++it) {
-        const auto unit = lower_text((*it)[3].str());
-        if (measurements().contains((*it)[3].str()) || measurements().contains(unit) ||
-            known_unit_words.contains(unit) || counted_nouns().contains(unit)) {
-            continue;
-        }
-        const auto s = static_cast<std::size_t>((*it).position(2));
-        const auto e = static_cast<std::size_t>((*it).position(3) + (*it).length(3));
-        add(s, e, "unknown unit or unsupported unit spelling", UncertaintyCategory::Unit, UncertaintySeverity::Warning);
-    }
-    static const std::regex year(R"((^|[^\d.,])(\d{4})(?!\d|[.,]\d))");
-    for (std::sregex_iterator it(input.begin(), input.end(), year), end; it != end; ++it) {
-        const auto n = parse_int((*it)[2].str());
+    ctre_each<R"((^|[^\d.,])(\d+(?:[.,]\d+)?)\s*([A-Za-zА-Яа-яЄєІіЇїҐґ]{1,6})(?![A-Za-zА-Яа-яЄєІіЇїҐґ]))">(
+        input, [&](const auto& m) {
+            const auto original_unit = cap_string<3>(m);
+            const auto unit = lower_text(original_unit);
+            if (measurements().contains(original_unit) || measurements().contains(unit) ||
+                known_unit_words.contains(unit) || counted_nouns().contains(unit)) {
+                return;
+            }
+            const auto s = cap_pos<2>(input, m);
+            const auto e = cap_pos<3>(input, m) + cap<3>(m).size();
+            add(s,
+                e,
+                "unknown unit or unsupported unit spelling",
+                UncertaintyCategory::Unit,
+                UncertaintySeverity::Warning);
+        });
+    ctre_each<R"((^|[^\d.,])(\d{4})(?!\d|[.,]\d))">(input, [&](const auto& m) {
+        const auto n = parse_int(cap<2>(m));
         if (n < 1000 || n > 2099) {
-            continue;
+            return;
         }
-        const auto e = static_cast<std::size_t>((*it).position(2) + (*it).length(2));
+        const auto e = cap_pos<2>(input, m) + cap<2>(m).size();
         const auto after = input.substr(e, 16);
-        static const std::regex year_cue_after(R"(^\s*(?:рік|року|році|р\.|рр\.|ст\.))");
-        if (std::regex_search(after, year_cue_after)) {
-            continue;
+        if (ctre::search<R"(^\s*(?:рік|року|році|р\.|рр\.|ст\.))">(after)) {
+            return;
         }
-        add((*it).position(2),
+        add(cap_pos<2>(input, m),
             e,
             "four-digit number (year or cardinal?)",
             UncertaintyCategory::BareNumber,
             UncertaintySeverity::Warning);
-    }
-    static const std::regex bare(R"((^|[^\d.,:%-])(\d{1,4})(?![\d.,:%/-]))");
+    });
     static const std::regex cue_after("^\\s*(?:" + unit_alt() + R"(|%|грн|коп|рік|року|році|тис|млн|млрд|[-–—]))",
                                       std::regex::icase);
     static const std::unordered_set<std::string> governors = {
         "близько", "понад", "менше", "більше", "від", "до", "із", "з", "без", "після", "к", "у", "в", "о", "об"};
-    for (std::sregex_iterator it(input.begin(), input.end(), bare), end; it != end; ++it) {
-        const auto s = static_cast<std::size_t>((*it).position(2));
-        const auto e = s + (*it).length(2);
+    ctre_each<R"((^|[^\d.,:%\-])(\d{1,4})(?![\d.,:%/\-]))">(input, [&](const auto& m) {
+        const auto s = cap_pos<2>(input, m);
+        const auto e = s + cap<2>(m).size();
         if (seen.contains({s, e})) {
-            continue;
+            return;
         }
-        const auto digits = (*it)[2].str();
+        const auto digits = cap_string<2>(m);
         if (digits.size() > 1 && digits[0] == '0') {
-            continue;
+            return;
         }
         auto left = input.substr(0, s);
-        std::smatch prev;
-        static const std::regex prev_word(R"(([А-Яа-яЄєІіЇїҐґ]+)$)");
-        if (std::regex_search(left, prev, prev_word) && governors.contains(lower_text(prev[1].str()))) {
-            continue;
+        if (auto prev = ctre::search<R"(([А-Яа-яЄєІіЇїҐґ]+)$)">(left);
+            prev && governors.contains(lower_text(cap<1>(prev)))) {
+            return;
         }
         if (std::regex_search(input.substr(e), cue_after)) {
-            continue;
+            return;
         }
         add(s,
             e,
             "bare number (case / cardinal-vs-ordinal undetermined)",
             UncertaintyCategory::BareNumber,
             UncertaintySeverity::Warning);
-    }
+    });
     std::sort(spans.begin(), spans.end(), [](const auto& a, const auto& b) {
         return std::tie(a.start, a.stop) < std::tie(b.start, b.stop);
     });
