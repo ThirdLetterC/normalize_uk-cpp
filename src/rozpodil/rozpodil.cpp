@@ -62,7 +62,7 @@ bool is_digit(char32_t cp)
     return cp >= U'0' && cp <= U'9';
 }
 
-bool is_lat(char32_t cp)
+bool is_latin(char32_t cp)
 {
     return (cp >= U'a' && cp <= U'z') || (cp >= U'A' && cp <= U'Z');
 }
@@ -75,7 +75,7 @@ bool is_uk(char32_t cp)
 
 bool is_alpha(char32_t cp)
 {
-    return is_lat(cp) || is_uk(cp);
+    return is_latin(cp) || is_uk(cp);
 }
 
 bool is_uk_apostrophe(char32_t cp)
@@ -137,7 +137,7 @@ char32_t lower_cp(char32_t cp)
     return cp;
 }
 
-std::string lower_ascii_uk(std::string_view text)
+std::string lower_ascii_ukrainian(std::string_view text)
 {
     std::string out;
     for (std::size_t i = 0; i < text.size();) {
@@ -382,7 +382,7 @@ std::optional<std::string_view> trailing_dot_abbrev_token(std::string_view text)
     return text.substr(cps[i].start, cps[stop - 1].stop - cps[i].start);
 }
 
-std::optional<std::pair<std::string_view, std::string_view>> left_pair_sokr(std::string_view text)
+std::optional<std::pair<std::string_view, std::string_view>> left_abbreviation_pair(std::string_view text)
 {
     auto cps = codepoints(text);
     if (cps.empty()) {
@@ -454,12 +454,12 @@ std::unordered_set<std::string_view> words(std::initializer_list<std::string_vie
     return {values.begin(), values.end()};
 }
 
-const auto tail_sokrs =
+const auto trailing_abbreviations =
     words({"тис",  "млн", "млрд", "грн", "коп", "проц", "га",  "кг",  "г",   "т",   "куб", "кв",   "км",   "м",
            "см",   "мм",  "л",    "год", "хв",  "сек",  "ст",  "р",   "рр",  "с",   "к",   "руб",  "крб",  "co",
            "corp", "inc", "ed",   "al",  "мон", "моз",  "мвс", "сбу", "нбу", "дпс", "дбр", "набу", "назк", "ова",
            "ода",  "рда", "кмда", "мкм", "нм",  "квт",  "мвт", "шт",  "од",  "екз", "вс",  "оаск", "єрдр", "ecli"});
-const auto head_sokrs = words(
+const auto leading_abbreviations = words(
     {"ст",     "укр",  "англ",  "нім",  "фр",     "італ",   "грец", "лат",     "mr",     "mrs",    "ms",      "dr",
      "vs",     "св",   "проф",  "акад", "доц",    "канд",   "д-р",  "ред",     "гр",     "ім",     "тов",     "п",
      "пп",     "ч",    "чч",    "гл",   "абз",    "пт",     "no",   "просп",   "пр",     "вул",    "ш",       "м",
@@ -472,21 +472,22 @@ const auto head_sokrs = words(
      "ж/м",    "в/ч",  "остр",  "річ",  "станц",  "залізн", "бл",   "прибл",   "зокр",   "порівн", "підрозд", "тр",
      "скаржн", "кк",   "кпк",   "цк",   "цпк",    "гк",     "гпк",  "кас",     "купап",  "кзпп",   "пку",     "мку",
      "зку",    "ску",  "вс",    "вп",   "кцс",    "кгс",    "ккс",  "оаск",    "v",      "єрдр",   "ecli"});
-const auto other_sokrs = words({"скор", "рис", "винят", "прим", "заст", "жарт"});
+const auto other_abbreviations = words({"скор", "рис", "винят", "прим", "заст", "жарт"});
 const auto initials = words({"дж", "ed"});
 
-const std::unordered_set<std::string> head_pair_sokrs = {
+const std::unordered_set<std::string> leading_abbreviation_pairs = {
     "т е", "т к", "т н", "и о", "к н", "к п", "п н", "к т", "л д", "і т", "ст ст", "а с"};
-const std::unordered_set<std::string> pair_sokrs = {
+const std::unordered_set<std::string> abbreviation_pairs = {
     "т п", "т д", "у е", "н э", "p m", "a m", "с г", "р х",  "с ш",  "з д",        "л с",        "ч т", "т е",   "т к",
     "т н", "и о", "к н", "к п", "п н", "к т", "л д", "ед ч", "мн ч", "повел накл", "жен рмуж р", "і т", "ст ст", "а с"};
 
-bool in_sokrs(std::string_view value)
+bool is_known_abbreviation(std::string_view value)
 {
-    return tail_sokrs.contains(value) || head_sokrs.contains(value) || other_sokrs.contains(value);
+    return trailing_abbreviations.contains(value) || leading_abbreviations.contains(value) ||
+           other_abbreviations.contains(value);
 }
 
-bool is_sokr_right(std::string_view token)
+bool can_follow_abbreviation(std::string_view token)
 {
     auto cps = codepoints(token);
     if (cps.empty()) {
@@ -550,7 +551,7 @@ bool is_bullet(std::string_view token)
     if (token == "." || token == ")") {
         return true;
     }
-    const auto lower = lower_ascii_uk(token);
+    const auto lower = lower_ascii_ukrainian(token);
     return std::string_view("§абвгдеabcdef").contains(std::string_view(lower)) || roman(token);
 }
 
@@ -626,41 +627,41 @@ Action sent_join(const SentSplit& split)
     }
     std::size_t dnext = 0;
     const auto delimiter_cp = decode_one(split.delimiter, 0, dnext);
-    const auto left_lower = lower_ascii_uk(last_compound_abbrev_token(split.left).value_or(*left));
+    const auto left_lower = lower_ascii_ukrainian(last_compound_abbrev_token(split.left).value_or(*left));
     if (split.delimiter == ".") {
-        bool skip_single_sokr = false;
+        bool skip_single_abbreviation = false;
         if (std::ranges::all_of(codepoints(*left), [](const Cp& cp) { return is_digit(cp.value); }) &&
             std::ranges::all_of(codepoints(*right), [](const Cp& cp) { return is_digit(cp.value); })) {
             return Action::Join;
         }
         if (auto dotted = trailing_dot_abbrev_token(split.left)) {
-            const auto dotted_lower = lower_ascii_uk(*dotted);
-            if (in_sokrs(dotted_lower) && is_sokr_right(*right)) {
+            const auto dotted_lower = lower_ascii_ukrainian(*dotted);
+            if (is_known_abbreviation(dotted_lower) && can_follow_abbreviation(*right)) {
                 return Action::Join;
             }
         }
-        if (auto pair_match = left_pair_sokr(split.left)) {
-            const auto a = lower_ascii_uk(pair_match->first);
-            const auto b = lower_ascii_uk(pair_match->second);
+        if (auto pair_match = left_abbreviation_pair(split.left)) {
+            const auto a = lower_ascii_ukrainian(pair_match->first);
+            const auto b = lower_ascii_ukrainian(pair_match->second);
             const std::string pair = a + " " + b;
-            if (head_pair_sokrs.contains(pair)) {
+            if (leading_abbreviation_pairs.contains(pair)) {
                 return Action::Join;
             }
-            if (pair_sokrs.contains(pair)) {
-                if (is_sokr_right(*right)) {
+            if (abbreviation_pairs.contains(pair)) {
+                if (can_follow_abbreviation(*right)) {
                     return Action::Join;
                 }
-                skip_single_sokr = true;
+                skip_single_abbreviation = true;
             }
         }
-        if (!skip_single_sokr) {
+        if (!skip_single_abbreviation) {
             if ((left_lower == "ст" && is_article_abbrev_right(*right)) ||
-                (left_lower != "ст" && head_sokrs.contains(left_lower)) ||
-                (in_sokrs(left_lower) && is_sokr_right(*right))) {
+                (left_lower != "ст" && leading_abbreviations.contains(left_lower)) ||
+                (is_known_abbreviation(left_lower) && can_follow_abbreviation(*right))) {
                 return Action::Join;
             }
-            const auto right_lower = lower_ascii_uk(*right);
-            if (pair_sokrs.contains(left_lower + " " + right_lower)) {
+            const auto right_lower = lower_ascii_ukrainian(*right);
+            if (abbreviation_pairs.contains(left_lower + " " + right_lower)) {
                 return Action::Join;
             }
         }
@@ -836,9 +837,9 @@ std::vector<Atom> atoms(std::string_view text)
             while (i < cps.size() && (is_uk(cps[i].value) || is_inner_uk_apostrophe(cps, i))) {
                 ++i;
             }
-        } else if (is_lat(cps[i].value)) {
+        } else if (is_latin(cps[i].value)) {
             type = AtomType::Lat;
-            while (i < cps.size() && is_lat(cps[i].value)) {
+            while (i < cps.size() && is_latin(cps[i].value)) {
                 ++i;
             }
         } else if (is_digit(cps[i].value)) {
@@ -851,7 +852,7 @@ std::vector<Atom> atoms(std::string_view text)
             ++i;
         }
         auto sv = text.substr(cps[begin].start, cps[i - 1].stop - cps[begin].start);
-        out.push_back({cps[begin].start, cps[i - 1].stop, type, sv, lower_ascii_uk(sv)});
+        out.push_back({cps[begin].start, cps[i - 1].stop, type, sv, lower_ascii_ukrainian(sv)});
     }
     return out;
 }
@@ -945,7 +946,7 @@ bool token_join(const Atom& left_1,
         return true;
     }
     if (delimiter.empty() && left_1.type == AtomType::Int &&
-        (right_1.type == AtomType::Uk || right_1.type == AtomType::Lat) && in_sokrs(right_1.normal)) {
+        (right_1.type == AtomType::Uk || right_1.type == AtomType::Lat) && is_known_abbreviation(right_1.normal)) {
         return true;
     }
     return left_1.normal == "yahoo" && right_1.text == "!";
@@ -953,7 +954,7 @@ bool token_join(const Atom& left_1,
 
 } // namespace
 
-std::vector<Substring> sentenize(std::string_view text)
+std::vector<Substring> split_sentences(std::string_view text)
 {
     if (std::ranges::all_of(codepoints(text), [](const Cp& cp) { return is_space(cp.value); })) {
         return {};
@@ -1020,9 +1021,9 @@ std::vector<Substring> sentenize(std::string_view text)
     return find_substrings(chunks, text, true);
 }
 
-std::vector<Substring> split_sentences(std::string_view text)
+std::vector<Substring> sentenize(std::string_view text)
 {
-    return sentenize(text);
+    return split_sentences(text);
 }
 
 std::vector<Substring> tokenize(std::string_view text)

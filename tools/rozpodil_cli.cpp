@@ -57,7 +57,7 @@ int main(int argc, char** argv)
         }
 
         const auto text = read_file(path);
-        const auto chunks = tokens ? rozpodil::tokenize(text) : rozpodil::sentenize(text);
+        const auto chunks = tokens ? rozpodil::tokenize(text) : rozpodil::split_sentences(text);
         for (const auto& chunk : chunks) {
             std::cout << chunk.text << '\n';
         }

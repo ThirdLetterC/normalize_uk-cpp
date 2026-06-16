@@ -571,7 +571,7 @@ std::string compact_spaces_lower(std::string_view text)
     return out;
 }
 
-const std::unordered_map<std::string, std::string>& cyr_map()
+const std::unordered_map<std::string, std::string>& cyrillic_transliteration_map()
 {
     static const std::unordered_map<std::string, std::string> map = {
         {"a", "а"},  {"b", "б"},  {"c", "к"},  {"d", "д"},  {"e", "е"},  {"f", "ф"},  {"g", "г"},  {"h", "г"},
@@ -1539,18 +1539,18 @@ std::string normalize_compounds(std::string text)
     });
 }
 
-std::string hours_words(int h)
+std::string hours_words(int hour)
 {
-    auto words = split_words(number_to_words(h));
+    auto words = split_words(number_to_words(hour));
     feminine_last(words);
-    return join(words) + " " + plural(h, {"година", "години", "годин"});
+    return join(words) + " " + plural(hour, {"година", "години", "годин"});
 }
 
-std::string minutes_words(int m, const Forms& forms = {"хвилина", "хвилини", "хвилин"})
+std::string minutes_words(int minute, const Forms& forms = {"хвилина", "хвилини", "хвилин"})
 {
-    auto words = split_words(number_to_words(m));
+    auto words = split_words(number_to_words(minute));
     feminine_last(words);
-    return join(words) + " " + plural(m, forms);
+    return join(words) + " " + plural(minute, forms);
 }
 
 std::string normalize_time(std::string text)
@@ -1565,20 +1565,20 @@ std::string normalize_time(std::string text)
         });
     text = ctre_sub<R"((^|[^\d:])(\d{1,2}):([0-5]\d)\s+(ранку|дня|вечора|ночі)(?![А-Яа-яЄєІіЇїҐґ\d:]))">(
         text, [](const auto& m) {
-            const int h = parse_int(cap<2>(m));
-            const int mn = parse_int(cap<3>(m));
-            std::string out = cap_string<1>(m) + hours_words(h);
-            if (mn) {
-                out += " " + minutes_words(mn);
+            const int hour = parse_int(cap<2>(m));
+            const int minute = parse_int(cap<3>(m));
+            std::string out = cap_string<1>(m) + hours_words(hour);
+            if (minute) {
+                out += " " + minutes_words(minute);
             }
             return out + " " + cap_string<4>(m);
         });
     return ctre_sub<R"((^|[^\d:])(\d{1,2}):([0-5]\d)(?![\d:]))">(text, [](const auto& m) {
-        const int h = parse_int(cap<2>(m));
-        const int mn = parse_int(cap<3>(m));
-        std::string out = cap_string<1>(m) + hours_words(h);
-        if (mn) {
-            out += " " + minutes_words(mn);
+        const int hour = parse_int(cap<2>(m));
+        const int minute = parse_int(cap<3>(m));
+        std::string out = cap_string<1>(m) + hours_words(hour);
+        if (minute) {
+            out += " " + minutes_words(minute);
         }
         return out;
     });
@@ -1754,13 +1754,15 @@ std::string normalize_math(std::string text)
 std::string normalize_decimals(std::string text)
 {
     return ctre_sub<R"(\b(\d+),(\d+)\b)">(text, [](const auto& m) {
-        const auto ip = cap_string<1>(m);
-        const auto fp = cap_string<2>(m);
-        if (fp.find_first_not_of('0') == std::string::npos) {
-            return number_digits_or_words(ip);
+        const auto integer_part = cap_string<1>(m);
+        const auto fractional_part = cap_string<2>(m);
+        if (fractional_part.find_first_not_of('0') == std::string::npos) {
+            return number_digits_or_words(integer_part);
         }
-        auto words = decimal_to_words(ip, fp);
-        return words.empty() ? number_digits_or_words(ip) + " кома " + number_to_words_digit_by_digit(fp) : words;
+        auto words = decimal_to_words(integer_part, fractional_part);
+        return words.empty()
+                   ? number_digits_or_words(integer_part) + " кома " + number_to_words_digit_by_digit(fractional_part)
+                   : words;
     });
 }
 
@@ -2539,7 +2541,7 @@ std::string transliterate_to_cyrillic(std::string_view text)
             if (i + 2 < text.size()) {
                 tri = lower_text(text.substr(i, 3));
             }
-            if (const auto it = cyr_map().find(tri); it != cyr_map().end()) {
+            if (const auto it = cyrillic_transliteration_map().find(tri); it != cyrillic_transliteration_map().end()) {
                 out += it->second;
                 i += 3;
                 continue;
@@ -2548,13 +2550,13 @@ std::string transliterate_to_cyrillic(std::string_view text)
             if (i + 1 < text.size()) {
                 di = lower_text(text.substr(i, 2));
             }
-            if (const auto it = cyr_map().find(di); it != cyr_map().end()) {
+            if (const auto it = cyrillic_transliteration_map().find(di); it != cyrillic_transliteration_map().end()) {
                 out += it->second;
                 i += 2;
                 continue;
             }
             const std::string one = lower_text(text.substr(i, 1));
-            if (const auto it = cyr_map().find(one); it != cyr_map().end()) {
+            if (const auto it = cyrillic_transliteration_map().find(one); it != cyrillic_transliteration_map().end()) {
                 out += it->second;
             } else {
                 out.append(text.substr(i, next - i));

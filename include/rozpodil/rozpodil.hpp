@@ -14,8 +14,9 @@ struct Substring {
     friend bool operator==(const Substring&, const Substring&) = default;
 };
 
-std::vector<Substring> sentenize(std::string_view text);
 std::vector<Substring> split_sentences(std::string_view text);
+// Legacy alias kept for source compatibility.
+std::vector<Substring> sentenize(std::string_view text);
 std::vector<Substring> tokenize(std::string_view text);
 
 } // namespace rozpodil

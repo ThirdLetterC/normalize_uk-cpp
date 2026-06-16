@@ -41,7 +41,7 @@ std::vector<Substring> split_sentences(std::string_view text)
     return copy_substrings(rozpodil::split_sentences(text));
 }
 
-std::vector<Substring> sentenize(std::string_view text)
+std::vector<Substring> legacy_sentenize(std::string_view text)
 {
     return split_sentences(text);
 }
@@ -167,6 +167,6 @@ PYBIND11_MODULE(_normalize_uk, m)
         py::arg("preset") = uktextnorm::NormalizePreset::Default);
     m.def("flag_uncertain", &uktextnorm::flag_uncertain, py::arg("text"));
     m.def("split_sentences", &split_sentences, py::arg("text"));
-    m.def("sentenize", &sentenize, py::arg("text"));
+    m.def("sentenize", &legacy_sentenize, py::arg("text"));
     m.def("tokenize", &tokenize, py::arg("text"));
 }

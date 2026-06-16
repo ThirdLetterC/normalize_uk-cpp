@@ -85,6 +85,7 @@ struct NormalizeOptions {
 [[nodiscard]] std::string normalize_abbreviations(std::string_view text);
 [[nodiscard]] std::string expand_abbreviations(std::string_view text);
 [[nodiscard]] std::string transliterate_to_cyrillic(std::string_view text);
+// Legacy aliases kept for source compatibility.
 [[nodiscard]] std::string cyrilize(std::string_view text);
 [[nodiscard]] std::string cyrrilize(std::string_view text);
 [[nodiscard]] std::string normalize_ukrainian(std::string_view text);
