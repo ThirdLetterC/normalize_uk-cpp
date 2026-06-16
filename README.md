@@ -24,13 +24,13 @@ python -m pip install .
 ```
 
 ```python
-import normalize_uk as n2w
+import normalize_uk as nuk
 
-print(n2w.number_to_words(123))
-print(n2w.normalize_ukrainian("01.05.2024"))
-print(n2w.normalize_ukrainian_with_preset("01.05.2024", n2w.NormalizePreset.TtsFriendly))
-print([sentence.text for sentence in n2w.split_sentences("П'ять зв'язків. Два.")])
-print([token.text for token in n2w.tokenize("П'ять зв'язків.")])
+print(nuk.number_to_words(123))
+print(nuk.normalize_ukrainian("01.05.2024"))
+print(nuk.normalize_ukrainian_with_preset("01.05.2024", nuk.NormalizePreset.TtsFriendly))
+print([sentence.text for sentence in nuk.split_sentences("П'ять зв'язків. Два.")])
+print([token.text for token in nuk.tokenize("П'ять зв'язків.")])
 ```
 
 More examples live in `examples/python/`.
