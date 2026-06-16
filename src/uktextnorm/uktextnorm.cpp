@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -56,6 +57,16 @@ bool is_uk(char32_t cp)
 bool is_upper_uk(char32_t cp)
 {
     return (cp >= U'А' && cp <= U'Я') || cp == U'Є' || cp == U'І' || cp == U'Ї' || cp == U'Ґ';
+}
+
+bool is_latin(char32_t cp)
+{
+    return (cp >= U'a' && cp <= U'z') || (cp >= U'A' && cp <= U'Z');
+}
+
+bool is_word_joiner(char32_t cp)
+{
+    return cp == U'\'' || cp == U'’' || cp == U'–' || cp == U'-';
 }
 
 char32_t lower_cp(char32_t cp)
@@ -141,6 +152,110 @@ std::vector<Cp> codepoints(std::string_view text)
         i = next;
     }
     return out;
+}
+
+std::vector<std::size_t> byte_to_char_offsets(std::string_view text)
+{
+    std::vector<std::size_t> offsets(text.size() + 1);
+    std::size_t char_offset = 0;
+    for (std::size_t i = 0; i < text.size();) {
+        std::size_t next = i + 1;
+        decode_one(text, i, next);
+        for (std::size_t byte = i; byte < next; ++byte) {
+            offsets[byte] = char_offset;
+        }
+        i = next;
+        ++char_offset;
+    }
+    offsets[text.size()] = char_offset;
+    return offsets;
+}
+
+bool has_ascii_digit(std::string_view text)
+{
+    return std::ranges::any_of(text, [](unsigned char ch) { return ch >= '0' && ch <= '9'; });
+}
+
+bool has_ascii_alpha(std::string_view text)
+{
+    return std::ranges::any_of(text,
+                               [](unsigned char ch) { return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'); });
+}
+
+bool contains_any(std::string_view text, std::string_view chars)
+{
+    return text.find_first_of(chars) != std::string_view::npos;
+}
+
+bool contains_any_token(std::string_view text, std::initializer_list<std::string_view> tokens)
+{
+    return std::ranges::any_of(tokens,
+                               [&](std::string_view token) { return text.find(token) != std::string_view::npos; });
+}
+
+bool is_utf8_continuation(char ch)
+{
+    return (static_cast<unsigned char>(ch) & 0xC0) == 0x80;
+}
+
+bool has_roman_candidate(std::string_view text)
+{
+    return text.find_first_of("MDCLXVI") != std::string_view::npos;
+}
+
+bool has_currency_candidate(std::string_view text)
+{
+    return contains_any(text, "$€£₴") ||
+           contains_any_token(text, {"грн", "UAH", "USD", "EUR", "GBP", "долар", "євро", "фунт"});
+}
+
+bool has_symbol_candidate(std::string_view text)
+{
+    return contains_any_token(text, {"°", "±", "≈", "≠", "≤", "≥", "×", "÷", "=", "<", ">", "‰",
+                                     "§", "₿", "•", "·", "~", "&", "#", "_", "²", "³", "№"});
+}
+
+bool is_ascii_acronym(std::string_view text)
+{
+    if (text.size() < 2 || text.size() > 6) {
+        return false;
+    }
+    return std::ranges::all_of(text, [](unsigned char ch) { return ch >= 'A' && ch <= 'Z'; });
+}
+
+bool is_uncertain_word_char(char32_t cp)
+{
+    return is_latin(cp) || is_uk(cp) || is_word_joiner(cp);
+}
+
+std::vector<Cp> uncertain_word_spans(std::string_view text)
+{
+    std::vector<Cp> spans;
+    std::size_t word_start = std::string_view::npos;
+    std::size_t word_stop = 0;
+    bool has_letter = false;
+    for (std::size_t i = 0; i < text.size();) {
+        std::size_t next = i + 1;
+        const auto cp = decode_one(text, i, next);
+        if (is_uncertain_word_char(cp)) {
+            if (word_start == std::string_view::npos) {
+                word_start = i;
+            }
+            word_stop = next;
+            has_letter = has_letter || is_latin(cp) || (is_uk(cp) && !is_word_joiner(cp));
+        } else {
+            if (word_start != std::string_view::npos && has_letter) {
+                spans.push_back({0, word_start, word_stop});
+            }
+            word_start = std::string_view::npos;
+            has_letter = false;
+        }
+        i = next;
+    }
+    if (word_start != std::string_view::npos && has_letter) {
+        spans.push_back({0, word_start, word_stop});
+    }
+    return spans;
 }
 
 template <class Fn>
@@ -238,15 +353,27 @@ int parse_int(std::string_view text)
 
 std::string trim_spaces(std::string text)
 {
-    static const std::regex repeated_spaces(" {2,}");
-    text = std::regex_replace(text, repeated_spaces, " ");
-    while (!text.empty() && text.front() == ' ') {
-        text.erase(text.begin());
+    std::string out;
+    out.reserve(text.size());
+    bool previous_space = false;
+    for (const char ch : text) {
+        if (ch == ' ') {
+            if (!previous_space) {
+                out.push_back(ch);
+            }
+            previous_space = true;
+        } else {
+            out.push_back(ch);
+            previous_space = false;
+        }
     }
-    while (!text.empty() && text.back() == ' ') {
-        text.pop_back();
+    if (!out.empty() && out.front() == ' ') {
+        out.erase(out.begin());
     }
-    return text;
+    if (!out.empty() && out.back() == ' ') {
+        out.pop_back();
+    }
+    return out;
 }
 
 std::string plural(unsigned long long n, const Forms& forms)
@@ -452,26 +579,29 @@ const std::unordered_map<std::string, Measurement>& measurements()
     return map;
 }
 
-std::string unit_alt()
+const std::string& unit_alt()
 {
-    std::vector<std::string> units;
-    for (const auto& [unit, _] : measurements()) {
-        units.push_back(unit);
-    }
-    std::sort(units.begin(), units.end(), [](const auto& a, const auto& b) { return a.size() > b.size(); });
-    std::string out;
-    for (std::size_t i = 0; i < units.size(); ++i) {
-        if (i) {
-            out += "|";
+    static const std::string alt = [] {
+        std::vector<std::string> units;
+        for (const auto& [unit, _] : measurements()) {
+            units.push_back(unit);
         }
-        for (const char ch : units[i]) {
-            if (std::string_view(R"(\-[]{}()*+?.,^$|# )").contains(ch)) {
-                out.push_back('\\');
+        std::sort(units.begin(), units.end(), [](const auto& a, const auto& b) { return a.size() > b.size(); });
+        std::string out;
+        for (std::size_t i = 0; i < units.size(); ++i) {
+            if (i) {
+                out += "|";
             }
-            out.push_back(ch);
+            for (const char ch : units[i]) {
+                if (std::string_view(R"(\-[]{}()*+?.,^$|# )").contains(ch)) {
+                    out.push_back('\\');
+                }
+                out.push_back(ch);
+            }
         }
-    }
-    return out;
+        return out;
+    }();
+    return alt;
 }
 
 const std::string& counted_noun_alt();
@@ -2160,18 +2290,6 @@ std::string normalize_english(std::string text)
     });
 }
 
-std::size_t byte_to_char_offset(std::string_view text, std::size_t byte_offset)
-{
-    std::size_t chars = 0;
-    for (std::size_t i = 0; i < byte_offset && i < text.size();) {
-        std::size_t next = i + 1;
-        decode_one(text, i, next);
-        i = next;
-        ++chars;
-    }
-    return chars;
-}
-
 } // namespace
 
 std::string number_to_words_digit_by_digit(std::string_view digits)
@@ -2466,30 +2584,67 @@ std::string normalize_ukrainian(std::string_view input, NormalizePreset preset)
 std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& options)
 {
     std::string text(input);
+    const auto maybe_digits = [&] { return has_ascii_digit(text); };
+    const auto maybe_roman = [&] { return has_roman_candidate(text); };
+    const auto maybe_currency = [&] { return has_currency_candidate(text); };
+
     text = normalize_typography(std::move(text));
-    text = normalize_web(std::move(text));
-    text = normalize_quarters(std::move(text));
-    text = normalize_addresses(std::move(text));
+    if (contains_any(text, "@#") ||
+        contains_any_token(
+            text,
+            {"http://", "https://", "www.", ".com", ".ua", ".org", ".net", ".info", ".io", ".edu", ".gov", ".укр"})) {
+        text = normalize_web(std::move(text));
+    }
+    if (contains_any_token(text, {"кв.", "квартал"}) || maybe_roman()) {
+        text = normalize_quarters(std::move(text));
+    }
+    if (text.contains('.')) {
+        text = normalize_addresses(std::move(text));
+    }
     text = normalize_abbreviations(text);
-    text = normalize_number_groups(std::move(text));
-    text = normalize_identifiers(std::move(text));
-    text = normalize_ranges(std::move(text), options.range_style);
-    text = normalize_dates(std::move(text), options.date_style);
-    text = normalize_medical(std::move(text));
-    text = normalize_counted_noun_context(std::move(text));
-    text = normalize_case_context(std::move(text));
-    text = normalize_sections(std::move(text));
-    text = normalize_time(std::move(text));
-    text = normalize_counted_nouns(std::move(text));
-    text = normalize_ordinal_triggers(std::move(text));
-    text = normalize_compounds(std::move(text));
-    text = normalize_ordinals(std::move(text));
-    text = normalize_fractions(std::move(text));
-    text = normalize_percent(std::move(text));
-    text = normalize_symbol_currency(std::move(text));
-    text = normalize_multipliers(std::move(text));
-    text = normalize_measurements(std::move(text));
-    text = normalize_finance(std::move(text));
+    if (maybe_digits()) {
+        text = normalize_number_groups(std::move(text));
+        text = normalize_identifiers(std::move(text));
+        if (contains_any(text, "-–—%") || contains_any_token(text, {" рр", "роки", "стор.", "с."})) {
+            text = normalize_ranges(std::move(text), options.range_style);
+        }
+        text = normalize_dates(std::move(text), options.date_style);
+        if (contains_any(text, "/°№") || contains_any_token(text, {"мм рт", "раз", "тиск"})) {
+            text = normalize_medical(std::move(text));
+        }
+        text = normalize_counted_noun_context(std::move(text));
+        text = normalize_case_context(std::move(text));
+        if (text.contains('.') || maybe_roman()) {
+            text = normalize_sections(std::move(text));
+        }
+        if (contains_any(text, ":-–—")) {
+            text = normalize_time(std::move(text));
+        }
+        text = normalize_counted_nouns(std::move(text));
+        text = normalize_ordinal_triggers(std::move(text));
+        if (contains_any(text, "-–—")) {
+            text = normalize_compounds(std::move(text));
+        }
+        text = normalize_ordinals(std::move(text));
+        if (contains_any(text, "/½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒")) {
+            text = normalize_fractions(std::move(text));
+        }
+        if (text.contains('%')) {
+            text = normalize_percent(std::move(text));
+        }
+        if (maybe_currency()) {
+            text = normalize_symbol_currency(std::move(text));
+        }
+        if (contains_any_token(text, {"тис", "млн", "млрд", "трлн"})) {
+            text = normalize_multipliers(std::move(text));
+        }
+        text = normalize_measurements(std::move(text));
+    } else if (maybe_roman()) {
+        text = normalize_ordinals(std::move(text));
+    }
+    if (contains_any_token(text, {"BTC", "ETH", "USDT", "BNB", "USD", "EUR", "GBP", "UAH"})) {
+        text = normalize_finance(std::move(text));
+    }
     if (options.expand_known_acronyms) {
         text = normalize_known_acronyms(std::move(text));
     }
@@ -2497,21 +2652,39 @@ std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& 
         text = expand_abbreviations(text);
     }
     if (options.symbol_style == SymbolStyle::Expand) {
-        text = normalize_math(std::move(text));
-        text = normalize_symbols(std::move(text));
+        if (text.contains('+') && maybe_digits()) {
+            text = normalize_math(std::move(text));
+        }
+        if (has_symbol_candidate(text)) {
+            text = normalize_symbols(std::move(text));
+        }
     }
-    text = normalize_overprecise_currency_decimals(std::move(text));
-    text = normalize_currency(std::move(text));
-    text = normalize_decimals(std::move(text));
-    text = normalize_text_with_phone_numbers(std::move(text), options.phone_style);
-    text = normalize_versions(std::move(text));
-    text = normalize_negatives(std::move(text));
-    text = normalize_text_with_numbers(std::move(text));
+    if (maybe_digits()) {
+        if (maybe_currency()) {
+            text = normalize_overprecise_currency_decimals(std::move(text));
+            text = normalize_currency(std::move(text));
+        }
+        if (text.contains(',')) {
+            text = normalize_decimals(std::move(text));
+        }
+        text = normalize_text_with_phone_numbers(std::move(text), options.phone_style);
+        if (text.contains('.')) {
+            text = normalize_versions(std::move(text));
+        }
+        if (text.contains('-') || text.contains("−")) {
+            text = normalize_negatives(std::move(text));
+        }
+        text = normalize_text_with_numbers(std::move(text));
+    }
     if (options.normalize_english_words) {
-        text = normalize_english(std::move(text));
+        if (has_ascii_alpha(text)) {
+            text = normalize_english(std::move(text));
+        }
     }
     if (options.transliterate_latin) {
-        text = cyrilize(text);
+        if (has_ascii_alpha(text)) {
+            text = cyrilize(text);
+        }
     }
     return trim_spaces(std::move(text));
 }
@@ -2519,15 +2692,22 @@ std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& 
 std::vector<UncertainSpan> flag_uncertain(std::string_view text)
 {
     std::vector<UncertainSpan> spans;
+    const auto char_offsets = byte_to_char_offsets(text);
     std::set<std::pair<std::size_t, std::size_t>> seen;
     auto add = [&](std::size_t s,
                    std::size_t e,
                    std::string reason,
                    UncertaintyCategory category,
                    UncertaintySeverity severity) {
+        while (s > 0 && is_utf8_continuation(text[s])) {
+            --s;
+        }
+        while (e < text.size() && is_utf8_continuation(text[e])) {
+            ++e;
+        }
         if (seen.insert({s, e}).second) {
-            spans.push_back({byte_to_char_offset(text, s),
-                             byte_to_char_offset(text, e),
+            spans.push_back({char_offsets[s],
+                             char_offsets[e],
                              std::string(text.substr(s, e - s)),
                              std::move(reason),
                              category,
@@ -2574,46 +2754,54 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
             UncertaintyCategory::AmbiguousAbbreviation,
             UncertaintySeverity::Warning);
     }
-    static const std::regex mixed_word(R"([A-Za-zА-Яа-яЄєІіЇїҐґ][A-Za-zА-Яа-яЄєІіЇїҐґ'’-]*)");
-    for (std::sregex_iterator it(input.begin(), input.end(), mixed_word), end; it != end; ++it) {
+    for (const auto& word : uncertain_word_spans(input)) {
+        const auto token = std::string_view(input).substr(word.start, word.stop - word.start);
         bool has_latin = false;
         bool has_uk = false;
-        for (const auto& cp : codepoints((*it).str())) {
-            has_latin = has_latin || ((cp.value >= U'a' && cp.value <= U'z') || (cp.value >= U'A' && cp.value <= U'Z'));
-            has_uk = has_uk || is_uk(cp.value);
+        bool has_non_joiner_uk = false;
+        for (std::size_t i = word.start; i < word.stop;) {
+            std::size_t next = i + 1;
+            const auto cp = decode_one(input, i, next);
+            has_latin = has_latin || is_latin(cp);
+            has_uk = has_uk || is_uk(cp);
+            has_non_joiner_uk = has_non_joiner_uk || (is_uk(cp) && !is_word_joiner(cp));
+            i = next;
         }
-        if (has_latin && has_uk) {
-            add((*it).position(),
-                (*it).position() + (*it).length(),
+        if (has_latin && has_non_joiner_uk) {
+            add(word.start,
+                word.stop,
                 "mixed-script word (possible typo or spoofing)",
                 UncertaintyCategory::MixedScript,
                 UncertaintySeverity::Error);
         }
-    }
-    static const std::regex latin(R"(\b[A-Za-z][A-Za-z'’-]*\b)");
-    for (std::sregex_iterator it(input.begin(), input.end(), latin), end; it != end; ++it) {
-        const auto w = (*it).str();
-        if (std::regex_match(w, std::regex(R"([A-Z]{2,6})")) || english_words().contains(lower_text(w))) {
+        std::size_t first_next = word.start + 1;
+        if (!has_latin || has_non_joiner_uk || !is_latin(decode_one(input, word.start, first_next))) {
             continue;
         }
-        const auto s = static_cast<std::size_t>((*it).position());
-        const auto e = s + (*it).length();
-        if (s > 0) {
-            std::size_t prev_next = s;
-            const auto before = codepoints(input.substr(0, s));
-            if (!before.empty() && is_uk(before.back().value)) {
+        if (is_ascii_acronym(token) || english_words().contains(lower_text(token))) {
+            continue;
+        }
+        if (word.start > 0) {
+            std::size_t before_start = 0;
+            for (std::size_t i = 0; i < word.start;) {
+                before_start = i;
+                std::size_t next = i + 1;
+                decode_one(input, i, next);
+                i = next;
+            }
+            std::size_t ignored = before_start + 1;
+            if (is_uk(decode_one(input, before_start, ignored))) {
                 continue;
             }
-            (void)prev_next;
         }
-        if (e < input.size()) {
-            std::size_t next = e + 1;
-            if (is_uk(decode_one(input, e, next))) {
+        if (word.stop < input.size()) {
+            std::size_t next = word.stop + 1;
+            if (is_uk(decode_one(input, word.stop, next))) {
                 continue;
             }
         }
-        add((*it).position(),
-            (*it).position() + (*it).length(),
+        add(word.start,
+            word.stop,
             "foreign word (transliteration is approximate)",
             UncertaintyCategory::ForeignWord,
             UncertaintySeverity::Info);
@@ -2692,7 +2880,8 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
         }
         const auto e = static_cast<std::size_t>((*it).position(2) + (*it).length(2));
         const auto after = input.substr(e, 16);
-        if (std::regex_search(after, std::regex(R"(^\s*(?:рік|року|році|р\.|рр\.|ст\.))"))) {
+        static const std::regex year_cue_after(R"(^\s*(?:рік|року|році|р\.|рр\.|ст\.))");
+        if (std::regex_search(after, year_cue_after)) {
             continue;
         }
         add((*it).position(2),
@@ -2718,8 +2907,8 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
         }
         auto left = input.substr(0, s);
         std::smatch prev;
-        if (std::regex_search(left, prev, std::regex(R"(([А-Яа-яЄєІіЇїҐґ]+)$)")) &&
-            governors.contains(lower_text(prev[1].str()))) {
+        static const std::regex prev_word(R"(([А-Яа-яЄєІіЇїҐґ]+)$)");
+        if (std::regex_search(left, prev, prev_word) && governors.contains(lower_text(prev[1].str()))) {
             continue;
         }
         if (std::regex_search(input.substr(e), cue_after)) {

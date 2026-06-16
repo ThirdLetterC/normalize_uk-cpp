@@ -2,5 +2,6 @@ build/
 build-*/
 
 *.gcov
+*.out
 
 __pycache__
