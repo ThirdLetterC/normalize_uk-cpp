@@ -122,6 +122,7 @@ if(NORMALIZE_UK_CPP_BUILD_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_domain_golden.tsv
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_robust_golden.tsv
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_morphology_golden.tsv
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_coverage_golden.tsv
     )
 
     add_executable(uktextnorm_robustness_tests tests/uktextnorm_robustness_tests.cpp)

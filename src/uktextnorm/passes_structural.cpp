@@ -28,6 +28,71 @@ bool is_uk_letter(char32_t cp)
     return is_uk(cp) && !is_word_joiner(cp);
 }
 
+bool parse_octet(std::string_view text, int& value)
+{
+    if (text.empty() || text.size() > 3) {
+        return false;
+    }
+    value = 0;
+    for (const char ch : text) {
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+        value = value * 10 + (ch - '0');
+    }
+    return value <= 255;
+}
+
+std::string read_ipv6_group(std::string_view group)
+{
+    if (group.empty()) {
+        return "порожня група";
+    }
+    std::vector<std::string> parts;
+    std::string current_digits;
+    auto flush_digits = [&] {
+        if (!current_digits.empty()) {
+            parts.push_back(number_to_words_digit_by_digit(current_digits));
+            current_digits.clear();
+        }
+    };
+    for (const char ch : group) {
+        if (ch >= '0' && ch <= '9') {
+            current_digits.push_back(ch);
+            continue;
+        }
+        flush_digits();
+        const char letter = static_cast<char>(ch >= 'a' && ch <= 'z' ? ch - 32 : ch);
+        parts.push_back(spell_identifier_letters(std::string_view(&letter, 1)));
+    }
+    flush_digits();
+    return join(parts);
+}
+
+std::string read_coordinate_number(std::string_view digits)
+{
+    return number_to_words(parse_ull(digits));
+}
+
+std::string coordinate_hemisphere(std::string marker)
+{
+    marker = lower_text(marker);
+    replace_all(marker, " ", "");
+    if (marker.starts_with("пн") || marker.contains("північ")) {
+        return "північної широти";
+    }
+    if (marker.starts_with("пд") || marker.contains("півден")) {
+        return "південної широти";
+    }
+    if (marker.starts_with("сх") || marker.contains("схід")) {
+        return "східної довготи";
+    }
+    if (marker.starts_with("зх") || marker.contains("зах")) {
+        return "західної довготи";
+    }
+    return marker;
+}
+
 } // namespace
 
 std::string normalize_unicode(std::string text, QuoteStyle quote_style)
@@ -309,8 +374,72 @@ std::string normalize_symbols(std::string text)
 }
 std::string normalize_text_with_phone_numbers(std::string text, PhoneStyle style)
 {
-    return ctre_sub<R"((^|[^\d])((?:\+?380|0)\s*\(?\d{2}\)?[\-\s]?\d{3}[\-\s]?\d{2}[\-\s]?\d{2})(?!\d))">(
+    text = ctre_sub<R"((^|[^\d])((?:\+?380|0)\s*\(?\d{2}\)?[\-\s]?\d{3}[\-\s]?\d{2}[\-\s]?\d{2})(?!\d))">(
         text, [&](const auto& m) { return cap_string<1>(m) + normalize_phone_number(cap<2>(m), style); });
+    static const std::regex international(
+        R"((^|[^\d])(\+\d{1,3}(?:[\s().-]*\d{1,4}){2,})(?![\d]))");
+    return regex_sub(text, international, [&](const std::smatch& m) {
+        return m[1].str() + normalize_phone_number(m[2].str(), style);
+    });
+}
+
+std::string normalize_ip_addresses(std::string text)
+{
+    static const std::regex ipv4(R"((^|[^\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.]))");
+    text = regex_sub(text, ipv4, [](const std::smatch& m) {
+        std::array<int, 4> octets{};
+        for (std::size_t i = 0; i < octets.size(); ++i) {
+            if (!parse_octet(m[i + 2].str(), octets[i])) {
+                return m.str();
+            }
+        }
+        std::vector<std::string> parts = {"ай пі"};
+        for (const auto octet : octets) {
+            parts.push_back(number_to_words(static_cast<unsigned long long>(octet)));
+        }
+        return m[1].str() + join(parts);
+    });
+
+    static const std::regex ipv6(
+        R"((^|[^0-9A-Fa-f:])((?:[0-9A-Fa-f]{1,4}:){2,7}:?(?:[0-9A-Fa-f]{1,4})?)(?![0-9A-Fa-f:]))");
+    return regex_sub(text, ipv6, [](const std::smatch& m) {
+        const auto value = m[2].str();
+        if (value.find("::") != std::string::npos && value.find("::") != value.rfind("::")) {
+            return m.str();
+        }
+        std::vector<std::string> groups;
+        std::size_t start = 0;
+        while (start <= value.size()) {
+            const auto end = value.find(':', start);
+            groups.push_back(read_ipv6_group(
+                std::string_view(value).substr(start, end == std::string::npos ? std::string_view::npos : end - start)));
+            if (end == std::string::npos) {
+                break;
+            }
+            start = end + 1;
+        }
+        return m[1].str() + "ай пі версії шість " + join(groups, " двокрапка ");
+    });
+}
+
+std::string normalize_coordinates(std::string text)
+{
+    static const std::regex dms(
+        R"((^|[^\d])(\d{1,3})\s*°\s*(?:(\d{1,2})\s*(?:′|')\s*)?(?:(\d{1,2})\s*(?:″|")\s*)?((?:пн|пд|сх|зх)\.?\s*(?:ш|д)\.?|північн[а-яіїєґ]+\s+широт[а-яіїєґ]+|південн[а-яіїєґ]+\s+широт[а-яіїєґ]+|східн[а-яіїєґ]+\s+довгот[а-яіїєґ]+|західн[а-яіїєґ]+\s+довгот[а-яіїєґ]+))",
+        std::regex::icase);
+    return regex_sub(text, dms, [](const std::smatch& m) {
+        std::vector<std::string> parts = {read_coordinate_number(m[2].str()), "градусів"};
+        if (m[3].matched) {
+            parts.push_back(read_coordinate_number(m[3].str()));
+            parts.push_back("хвилин");
+        }
+        if (m[4].matched) {
+            parts.push_back(read_coordinate_number(m[4].str()));
+            parts.push_back("секунд");
+        }
+        parts.push_back(coordinate_hemisphere(m[5].str()));
+        return m[1].str() + join(parts);
+    });
 }
 std::string normalize_identifiers(std::string text)
 {

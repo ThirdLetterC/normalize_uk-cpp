@@ -82,6 +82,7 @@ struct NormalizeOptions {
     bool repair_homoglyphs = true;
     bool validate_dates = true;
     bool parse_thousand_separators = true;
+    bool normalize_network_addresses = true;
     QuoteStyle quote_style = QuoteStyle::Keep;
     RangeStyle range_style = RangeStyle::Compact;
     PhoneStyle phone_style = PhoneStyle::Grouped;

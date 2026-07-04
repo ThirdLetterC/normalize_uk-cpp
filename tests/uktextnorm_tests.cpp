@@ -405,8 +405,8 @@ int main(int argc, char** argv)
                               uktextnorm::UncertaintyCategory::Identifier,
                               uktextnorm::UncertaintySeverity::Info);
     expect_uncertain_metadata("uncertain currency metadata",
-                              uktextnorm::flag_uncertain("Сума 12 PLN."),
-                              "12 PLN",
+                              uktextnorm::flag_uncertain("Сума 12 RUB."),
+                              "12 RUB",
                               uktextnorm::UncertaintyCategory::Currency,
                               uktextnorm::UncertaintySeverity::Warning);
     expect_uncertain_metadata("uncertain unit metadata",
@@ -446,8 +446,10 @@ int main(int argc, char** argv)
         expect_eq("quote straight",
                   normalize_ukrainian("Слово «тест» тут", straight_quotes),
                   "Слово \"тест\" тут");
-        expect_eq("ip untouched by separators",
-                  normalize_ukrainian("IP 192.168.100.200", conservative),
+        uktextnorm::NormalizeOptions no_network = conservative;
+        no_network.normalize_network_addresses = false;
+        expect_eq("ip network opt-out",
+                  normalize_ukrainian("IP 192.168.100.200", no_network),
                   "IP сто дев'яносто два крапка сто шістдесят вісім крапка сто крапка двісті");
     }
     expect_uncertain_metadata("uncertain invalid date metadata",

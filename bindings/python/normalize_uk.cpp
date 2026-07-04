@@ -133,6 +133,7 @@ PYBIND11_MODULE(_normalize_uk, m)
         .def_readwrite("repair_homoglyphs", &uktextnorm::NormalizeOptions::repair_homoglyphs)
         .def_readwrite("validate_dates", &uktextnorm::NormalizeOptions::validate_dates)
         .def_readwrite("parse_thousand_separators", &uktextnorm::NormalizeOptions::parse_thousand_separators)
+        .def_readwrite("normalize_network_addresses", &uktextnorm::NormalizeOptions::normalize_network_addresses)
         .def_readwrite("quote_style", &uktextnorm::NormalizeOptions::quote_style);
 
     py::class_<Substring>(m, "Substring")

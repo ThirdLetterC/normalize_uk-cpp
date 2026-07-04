@@ -30,6 +30,7 @@ void usage(std::ostream& out)
         << "  --no-acronym-spelling  Preserve unknown all-caps acronyms.\n"
         << "  --no-english           Preserve known English brand/product words.\n"
         << "  --no-transliterate     Preserve remaining Latin-script words.\n"
+        << "  --no-network-addresses Preserve IPv4/IPv6 addresses.\n"
         << "  --uncertain            Print uncertainty spans as TSV.\n"
         << "  --uncertain-json       Print uncertainty spans as JSON.\n"
         << "  --min-severity <level> Only print uncertainty spans at info, warning, or error.\n"
@@ -508,6 +509,8 @@ int main(int argc, char** argv)
                 options.normalize_english_words = false;
             } else if (arg == "--no-transliterate") {
                 options.transliterate_latin = false;
+            } else if (arg == "--no-network-addresses") {
+                options.normalize_network_addresses = false;
             } else if (arg == "--uncertain") {
                 uncertain = true;
             } else if (arg == "--uncertain-json") {

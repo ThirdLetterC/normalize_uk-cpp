@@ -81,6 +81,9 @@ std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& 
     text = normalize_abbreviations(text);
     if (maybe_digits()) {
         text = normalize_number_groups(std::move(text), options.parse_thousand_separators);
+        if (options.normalize_network_addresses && contains_any(text, ".:")) {
+            text = normalize_ip_addresses(std::move(text));
+        }
         text = normalize_identifiers(std::move(text));
         if (contains_any(text, "-–—%") || contains_any_token(text, {" рр", "роки", "стор.", "с."})) {
             text = normalize_ranges(std::move(text), options.range_style);
@@ -108,6 +111,9 @@ std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& 
         }
         if (text.contains('%')) {
             text = normalize_percent(std::move(text));
+        }
+        if (contains_any(text, "°′″")) {
+            text = normalize_coordinates(std::move(text));
         }
         if (maybe_currency()) {
             text = normalize_symbol_currency(std::move(text));

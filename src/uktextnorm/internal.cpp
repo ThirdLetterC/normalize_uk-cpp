@@ -928,16 +928,40 @@ std::string finance_amount_words(std::string amount, const FinanceUnit& unit)
 std::string normalize_phone_number(std::string_view phone, PhoneStyle style)
 {
     std::string digits;
+    std::vector<std::string> groups;
+    std::string current_group;
     for (char ch : phone) {
         if (ch >= '0' && ch <= '9') {
             digits.push_back(ch);
+            current_group.push_back(ch);
+        } else if (!current_group.empty()) {
+            groups.push_back(current_group);
+            current_group.clear();
         }
+    }
+    if (!current_group.empty()) {
+        groups.push_back(current_group);
     }
     if (digits.size() == 10 && digits[0] == '0') {
         digits = "38" + digits;
     }
     if (digits.size() != 12 || !digits.starts_with("380")) {
-        return std::string(phone);
+        if (!phone.starts_with('+') || digits.size() < 7 || digits.size() > 15) {
+            return std::string(phone);
+        }
+        std::vector<std::string> parts = {"плюс"};
+        if (style == PhoneStyle::DigitByDigit || groups.size() < 2) {
+            parts.push_back(number_to_words_digit_by_digit(digits));
+            return join(parts);
+        }
+        for (const auto& group : groups) {
+            if (group.size() > 3 || (group.size() > 1 && group[0] == '0')) {
+                parts.push_back(number_to_words_digit_by_digit(group));
+            } else {
+                parts.push_back(number_to_words(parse_ull(group)));
+            }
+        }
+        return join(parts);
     }
     if (style == PhoneStyle::DigitByDigit) {
         return "плюс " + number_to_words_digit_by_digit(digits);
