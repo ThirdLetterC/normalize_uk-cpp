@@ -89,6 +89,7 @@ std::string normalize_ukrainian(std::string_view input, const NormalizeOptions& 
             text = normalize_ranges(std::move(text), options.range_style);
         }
         text = normalize_dates(std::move(text), options.date_style, options.validate_dates);
+        text = normalize_discourse_dates(std::move(text));
         if (contains_any(text, "/°№") || contains_any_token(text, {"мм рт", "раз", "тиск"})) {
             text = normalize_medical(std::move(text));
         }
@@ -431,7 +432,7 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
             UncertaintySeverity::Warning);
     });
     static const std::regex agreement_re(
-        R"((^|[^А-Яа-яЄєІіЇїҐґ-])(близько|понад|перед|між|над|під|при|після|без|від|до|із|з)\s+(\d{1,6})\s+([а-яєіїґА-ЯЄІЇҐ'\u2019]{3,})(?![А-Яа-яЄєІіЇїҐґ]))",
+        R"((^|[^А-Яа-яЄєІіЇїҐґ-])(близько|понад|перед|між|над|під|при|після|без|від|до|із|у|в|на|з)\s+(\d{1,6})\s+([^\s\d,.;:!?()]{3,}))",
         std::regex::icase);
     for (std::sregex_iterator it(input.begin(), input.end(), agreement_re), end; it != end; ++it) {
         const auto noun = lower_text((*it)[4].str());
@@ -439,9 +440,7 @@ std::vector<UncertainSpan> flag_uncertain(std::string_view text)
             measurements().contains(noun)) {
             continue;
         }
-        // Already-oblique nouns (з трьома друзями) do not need agreement help.
-        if (noun.ends_with("ами") || noun.ends_with("ями") || noun.ends_with("ах") || noun.ends_with("ях") ||
-            noun.ends_with("ів") || noun.ends_with("ей")) {
+        if (counted_oblique_cases().contains(noun)) {
             continue;
         }
         const auto s = static_cast<std::size_t>((*it).position(3));

@@ -217,6 +217,32 @@ inline constexpr std::array<BrandEntry, 37> kBrands = {{
     {"typescript", "тайпскрипт"},
 }};
 
+struct EnglishWordEntry {
+    std::string_view latin;
+    std::string_view cyrillic;
+};
+
+inline constexpr std::array<EnglishWordEntry, 18> kEnglishWords = {{
+    {"python", "пайтон"},
+    {"java", "джава"},
+    {"javascript", "джаваскрипт"},
+    {"typescript", "тайпскрипт"},
+    {"docker", "докер"},
+    {"kubernetes", "кубернетіс"},
+    {"linux", "лінукс"},
+    {"windows", "віндовс"},
+    {"macos", "макос"},
+    {"google", "гугл"},
+    {"shop", "шоп"},
+    {"server", "сервер"},
+    {"client", "клієнт"},
+    {"cloud", "клауд"},
+    {"api", "ей пі ай"},
+    {"web", "веб"},
+    {"online", "онлайн"},
+    {"offline", "офлайн"},
+}};
+
 struct FinanceUnitEntry {
     std::string_view code;
     std::string_view one;

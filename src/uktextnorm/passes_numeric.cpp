@@ -136,6 +136,27 @@ std::string normalize_dates(std::string text, DateStyle style, bool validate)
     return ctre_sub<R"(\b(\d{3,4})\s*р\.(?![а-яіїєґ]))">(
         text, [](const auto& m) { return number_to_ordinal_words(parse_ull(cap<1>(m)), "nom_m") + " рік"; });
 }
+
+std::string normalize_discourse_dates(std::string text)
+{
+    static const std::regex season_year(
+        R"((^|[^А-Яа-яЄєІіЇїҐґ])((?:весна|літо|осінь|зима))\s+(\d{3,4})(?![\dА-Яа-яЄєІіЇїҐґ]))",
+        std::regex::icase);
+    text = regex_sub(text, season_year, [](const std::smatch& m) {
+        return m[1].str() + m[2].str() + " " + number_to_ordinal_words(parse_ull(m[3].str()), "gen") + " року";
+    });
+
+    static const std::regex early_decade(
+        R"((^|[^А-Яа-яЄєІіЇїҐґ])((?:на\s+початку|у\s+середині|в\s+середині|наприкінці|у\s+кінці|в\s+кінці))\s+(\d{4})-х(?![А-Яа-яЄєІіЇїҐґ]))",
+        std::regex::icase);
+    return regex_sub(text, early_decade, [](const std::smatch& m) {
+        const auto year = parse_ull(m[3].str());
+        if (year == 2000) {
+            return m[1].str() + m[2].str() + " двотисячних";
+        }
+        return m[1].str() + m[2].str() + " " + number_to_ordinal_words(year, "pl");
+    });
+}
 std::string normalize_ordinals(std::string text)
 {
     static const std::unordered_map<std::string, std::string_view> suffix_form = {{"й", "nom_m"},
@@ -300,8 +321,11 @@ std::string normalize_case_context(std::string text)
     });
     return regex_sub(text, oblique, [](const std::smatch& m) {
         const auto noun = m[2].str();
-        const bool instr_case = noun.ends_with("ами") || noun.ends_with("ями") || noun.ends_with("ма");
-        return number_to_words_case(parse_ull(m[1].str()), instr_case ? "instr" : "prep") + " " + noun;
+        const auto it = counted_oblique_cases().find(lower_text(noun));
+        if (it == counted_oblique_cases().end()) {
+            return m.str();
+        }
+        return number_to_words_case(parse_ull(m[1].str()), it->second) + " " + noun;
     });
 }
 std::string normalize_counted_noun_context(std::string text)

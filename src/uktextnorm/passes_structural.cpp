@@ -43,6 +43,31 @@ bool parse_octet(std::string_view text, int& value)
     return value <= 255;
 }
 
+bool has_hex_letter(std::string_view text)
+{
+    return std::any_of(text.begin(), text.end(), [](char ch) {
+        return (ch >= 'A' && ch <= 'F') || (ch >= 'a' && ch <= 'f');
+    });
+}
+
+bool preceded_by_version_label(std::string_view prefix)
+{
+    std::size_t end = prefix.size();
+    while (end > 0 && static_cast<unsigned char>(prefix[end - 1]) <= ' ') {
+        --end;
+    }
+    std::size_t start = end;
+    while (start > 0) {
+        const unsigned char ch = static_cast<unsigned char>(prefix[start - 1]);
+        if (ch <= ' ' || ch == '(' || ch == '[' || ch == ':' || ch == '=') {
+            break;
+        }
+        --start;
+    }
+    const auto label = lower_text(prefix.substr(start, end - start));
+    return label == "версія" || label == "версії" || label == "version" || label == "ver" || label == "v";
+}
+
 std::string read_ipv6_group(std::string_view group)
 {
     if (group.empty()) {
@@ -387,6 +412,9 @@ std::string normalize_ip_addresses(std::string text)
 {
     static const std::regex ipv4(R"((^|[^\d.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\d.]))");
     text = regex_sub(text, ipv4, [](const std::smatch& m) {
+        if (preceded_by_version_label(m.prefix().str())) {
+            return m.str();
+        }
         std::array<int, 4> octets{};
         for (std::size_t i = 0; i < octets.size(); ++i) {
             if (!parse_octet(m[i + 2].str(), octets[i])) {
@@ -404,6 +432,9 @@ std::string normalize_ip_addresses(std::string text)
         R"((^|[^0-9A-Fa-f:])((?:[0-9A-Fa-f]{1,4}:){2,7}:?(?:[0-9A-Fa-f]{1,4})?)(?![0-9A-Fa-f:]))");
     return regex_sub(text, ipv6, [](const std::smatch& m) {
         const auto value = m[2].str();
+        if (!has_hex_letter(value) && value.find("::") == std::string::npos) {
+            return m.str();
+        }
         if (value.find("::") != std::string::npos && value.find("::") != value.rfind("::")) {
             return m.str();
         }

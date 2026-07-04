@@ -779,6 +779,20 @@ const std::unordered_map<std::string, CountedNoun>& counted_nouns()
     return map;
 }
 
+const std::unordered_map<std::string, std::string_view>& counted_oblique_cases()
+{
+    static const std::unordered_map<std::string, std::string_view> map = {
+        {"користувачами", "instr"}, {"користувачах", "prep"}, {"документами", "instr"}, {"документах", "prep"},
+        {"файлами", "instr"},       {"файлах", "prep"},       {"товарами", "instr"},    {"товарах", "prep"},
+        {"учасниками", "instr"},    {"учасниках", "prep"},    {"днями", "instr"},       {"днях", "prep"},
+        {"тижнями", "instr"},       {"тижнях", "prep"},       {"місяцями", "instr"},    {"місяцях", "prep"},
+        {"заявками", "instr"},      {"заявках", "prep"},      {"спробами", "instr"},    {"спробах", "prep"},
+        {"людьми", "instr"},        {"людях", "prep"},        {"особами", "instr"},     {"особах", "prep"},
+        {"дітьми", "instr"},        {"дітях", "prep"},        {"містами", "instr"},     {"містах", "prep"},
+        {"селами", "instr"},        {"селах", "prep"},        {"питаннями", "instr"},   {"питаннях", "prep"}};
+    return map;
+}
+
 std::string number_words_for_gender(unsigned long long n, char gender)
 {
     auto words = split_words(number_to_words(n));
@@ -1146,6 +1160,9 @@ const std::unordered_map<std::string, std::string>& english_words()
     static const std::unordered_map<std::string, std::string> map = [] {
         std::unordered_map<std::string, std::string> out;
         for (const auto& entry : lexicon::kBrands) {
+            out.emplace(std::string(entry.latin), std::string(entry.cyrillic));
+        }
+        for (const auto& entry : lexicon::kEnglishWords) {
             out.emplace(std::string(entry.latin), std::string(entry.cyrillic));
         }
         return out;

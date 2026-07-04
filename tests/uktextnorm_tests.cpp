@@ -206,6 +206,9 @@ int main(int argc, char** argv)
     expect_eq("apartment still address", normalize_ukrainian("кв. 7"), "квартира сім");
     expect_eq("marked hour", normalize_ukrainian("о 6-й"), "о шоста година");
     expect_eq("time part", normalize_ukrainian("6:00 ранку"), "шість годин ранку");
+    expect_eq("time with seconds",
+              normalize_ukrainian("Зустріч о 12:34:56"),
+              "Зустріч о дванадцять годин тридцять чотири хвилини п'ятдесят шість секунд");
     expect_eq("comma currency",
               normalize_ukrainian("1 234,56 грн"),
               "тисяча двісті тридцять чотири гривні п'ятдесят шість копійок");
@@ -355,6 +358,9 @@ int main(int argc, char** argv)
               "Версія дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять "
               "дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять дев'ять крапка "
               "один крапка два");
+    expect_eq("version dotted quad",
+              normalize_ukrainian("Версія 1.2.3.4"),
+              "Версія один крапка два крапка три крапка чотири");
     expect_eq(
         "oversized percent",
         normalize_ukrainian("Знижка 999999999999999999999999%"),
@@ -462,6 +468,11 @@ int main(int argc, char** argv)
                               "1,234",
                               uktextnorm::UncertaintyCategory::AmbiguousNumberGrouping,
                               uktextnorm::UncertaintySeverity::Warning);
+    expect_uncertain_metadata("uncertain unknown oblique agreement metadata",
+                              uktextnorm::flag_uncertain("у 4 фларбах"),
+                              "4 фларбах",
+                              uktextnorm::UncertaintyCategory::Agreement,
+                              uktextnorm::UncertaintySeverity::Info);
 
     for (int i = 1; i < argc; ++i) {
         run_golden_file(argv[i]);

@@ -23,6 +23,8 @@ TABLES = {
                           ["key", "expansion"], set()),
     "brands.tsv": ("kBrands", "BrandEntry",
                    ["latin", "cyrillic"], set()),
+    "english_words.tsv": ("kEnglishWords", "EnglishWordEntry",
+                          ["latin", "cyrillic"], set()),
     "finance_units.tsv": ("kFinanceUnits", "FinanceUnitEntry",
                           ["code", "one", "few", "many", "feminine"], {"feminine"}),
     "currencies.tsv": ("kCurrencies", "CurrencyEntry",

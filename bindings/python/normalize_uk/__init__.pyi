@@ -89,6 +89,7 @@ class NormalizeOptions:
     repair_homoglyphs: bool
     validate_dates: bool
     parse_thousand_separators: bool
+    normalize_network_addresses: bool
     quote_style: QuoteStyle
 
     def __init__(self, preset: NormalizePreset = NormalizePreset.Default) -> None: ...
