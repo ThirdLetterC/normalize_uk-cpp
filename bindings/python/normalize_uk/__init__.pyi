@@ -15,6 +15,9 @@ class UncertaintyCategory(Enum):
     RomanNumeral: UncertaintyCategory
     Unit: UncertaintyCategory
     Web: UncertaintyCategory
+    InvalidDate: UncertaintyCategory
+    AmbiguousNumberGrouping: UncertaintyCategory
+    Agreement: UncertaintyCategory
 
 
 class UncertaintySeverity(Enum):
@@ -41,6 +44,13 @@ class SymbolStyle(Enum):
 class DateStyle(Enum):
     Formal: DateStyle
     Spoken: DateStyle
+
+
+class QuoteStyle(Enum):
+    Keep: QuoteStyle
+    Guillemets: QuoteStyle
+    Straight: QuoteStyle
+    Strip: QuoteStyle
 
 
 class NormalizePreset(Enum):
@@ -76,6 +86,10 @@ class NormalizeOptions:
     phone_style: PhoneStyle
     symbol_style: SymbolStyle
     date_style: DateStyle
+    repair_homoglyphs: bool
+    validate_dates: bool
+    parse_thousand_separators: bool
+    quote_style: QuoteStyle
 
     def __init__(self, preset: NormalizePreset = NormalizePreset.Default) -> None: ...
 

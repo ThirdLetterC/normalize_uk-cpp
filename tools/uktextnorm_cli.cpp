@@ -78,6 +78,12 @@ std::string_view category_name(uktextnorm::UncertaintyCategory category)
         return "Unit";
     case uktextnorm::UncertaintyCategory::Web:
         return "Web";
+    case uktextnorm::UncertaintyCategory::InvalidDate:
+        return "InvalidDate";
+    case uktextnorm::UncertaintyCategory::AmbiguousNumberGrouping:
+        return "AmbiguousNumberGrouping";
+    case uktextnorm::UncertaintyCategory::Agreement:
+        return "Agreement";
     }
     return "Unknown";
 }
@@ -94,7 +100,10 @@ const std::vector<uktextnorm::UncertaintyCategory>& all_categories()
         uktextnorm::UncertaintyCategory::MixedScript,
         uktextnorm::UncertaintyCategory::RomanNumeral,
         uktextnorm::UncertaintyCategory::Unit,
-        uktextnorm::UncertaintyCategory::Web};
+        uktextnorm::UncertaintyCategory::Web,
+        uktextnorm::UncertaintyCategory::InvalidDate,
+        uktextnorm::UncertaintyCategory::AmbiguousNumberGrouping,
+        uktextnorm::UncertaintyCategory::Agreement};
     return categories;
 }
 

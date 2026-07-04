@@ -18,6 +18,9 @@ enum class UncertaintyCategory {
     RomanNumeral,
     Unit,
     Web,
+    InvalidDate,
+    AmbiguousNumberGrouping,
+    Agreement,
 };
 
 enum class UncertaintySeverity {
@@ -46,6 +49,13 @@ enum class DateStyle {
     Spoken,
 };
 
+enum class QuoteStyle {
+    Keep,
+    Guillemets,
+    Straight,
+    Strip,
+};
+
 enum class NormalizePreset {
     Default,
     TtsFriendly,
@@ -69,6 +79,10 @@ struct NormalizeOptions {
     bool spell_unknown_acronyms = true;
     bool normalize_english_words = true;
     bool transliterate_latin = true;
+    bool repair_homoglyphs = true;
+    bool validate_dates = true;
+    bool parse_thousand_separators = true;
+    QuoteStyle quote_style = QuoteStyle::Keep;
     RangeStyle range_style = RangeStyle::Compact;
     PhoneStyle phone_style = PhoneStyle::Grouped;
     SymbolStyle symbol_style = SymbolStyle::Expand;

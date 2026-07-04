@@ -67,7 +67,10 @@ PYBIND11_MODULE(_normalize_uk, m)
         .value("MixedScript", uktextnorm::UncertaintyCategory::MixedScript)
         .value("RomanNumeral", uktextnorm::UncertaintyCategory::RomanNumeral)
         .value("Unit", uktextnorm::UncertaintyCategory::Unit)
-        .value("Web", uktextnorm::UncertaintyCategory::Web);
+        .value("Web", uktextnorm::UncertaintyCategory::Web)
+        .value("InvalidDate", uktextnorm::UncertaintyCategory::InvalidDate)
+        .value("AmbiguousNumberGrouping", uktextnorm::UncertaintyCategory::AmbiguousNumberGrouping)
+        .value("Agreement", uktextnorm::UncertaintyCategory::Agreement);
 
     py::enum_<uktextnorm::UncertaintySeverity>(m, "UncertaintySeverity")
         .value("Info", uktextnorm::UncertaintySeverity::Info)
@@ -89,6 +92,12 @@ PYBIND11_MODULE(_normalize_uk, m)
     py::enum_<uktextnorm::DateStyle>(m, "DateStyle")
         .value("Formal", uktextnorm::DateStyle::Formal)
         .value("Spoken", uktextnorm::DateStyle::Spoken);
+
+    py::enum_<uktextnorm::QuoteStyle>(m, "QuoteStyle")
+        .value("Keep", uktextnorm::QuoteStyle::Keep)
+        .value("Guillemets", uktextnorm::QuoteStyle::Guillemets)
+        .value("Straight", uktextnorm::QuoteStyle::Straight)
+        .value("Strip", uktextnorm::QuoteStyle::Strip);
 
     py::enum_<uktextnorm::NormalizePreset>(m, "NormalizePreset")
         .value("Default", uktextnorm::NormalizePreset::Default)
@@ -120,7 +129,11 @@ PYBIND11_MODULE(_normalize_uk, m)
         .def_readwrite("range_style", &uktextnorm::NormalizeOptions::range_style)
         .def_readwrite("phone_style", &uktextnorm::NormalizeOptions::phone_style)
         .def_readwrite("symbol_style", &uktextnorm::NormalizeOptions::symbol_style)
-        .def_readwrite("date_style", &uktextnorm::NormalizeOptions::date_style);
+        .def_readwrite("date_style", &uktextnorm::NormalizeOptions::date_style)
+        .def_readwrite("repair_homoglyphs", &uktextnorm::NormalizeOptions::repair_homoglyphs)
+        .def_readwrite("validate_dates", &uktextnorm::NormalizeOptions::validate_dates)
+        .def_readwrite("parse_thousand_separators", &uktextnorm::NormalizeOptions::parse_thousand_separators)
+        .def_readwrite("quote_style", &uktextnorm::NormalizeOptions::quote_style);
 
     py::class_<Substring>(m, "Substring")
         .def_readonly("start", &Substring::start)

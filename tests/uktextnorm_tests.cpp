@@ -107,6 +107,12 @@ int main(int argc, char** argv)
               uktextnorm::number_to_words(1234567),
               "один мільйон двісті тридцять чотири тисячі п'ятсот шістдесят сім");
     expect_eq("ordinal", uktextnorm::number_to_ordinal_words(21, "nom_f"), "двадцять перша");
+    expect_eq("ordinal ins", uktextnorm::number_to_ordinal_words(5, "ins"), "п'ятим");
+    expect_eq("ordinal ins soft", uktextnorm::number_to_ordinal_words(3, "ins"), "третім");
+    expect_eq("ordinal ins fem", uktextnorm::number_to_ordinal_words(2, "ins_f"), "другою");
+    expect_eq("ordinal loc fem", uktextnorm::number_to_ordinal_words(40, "loc_f"), "сороковій");
+    expect_eq("ordinal ins plural", uktextnorm::number_to_ordinal_words(100, "ins_pl"), "сотими");
+    expect_eq("ordinal loc", uktextnorm::number_to_ordinal_words(1000, "loc"), "тисячному");
     expect_eq("case", uktextnorm::number_to_words_case(500, "gen"), "п'ятисот");
     expect_eq("abbr", uktextnorm::normalize_abbreviations("І т. д. і т. ін."), "і так далі і таке інше");
     expect_eq("acronym", uktextnorm::expand_abbreviations("СБР і НАТО"), "ес бе ер і НАТО");
@@ -417,6 +423,42 @@ int main(int argc, char** argv)
                               uktextnorm::flag_uncertain("Перейти на https://"),
                               "https://",
                               uktextnorm::UncertaintyCategory::Web,
+                              uktextnorm::UncertaintySeverity::Warning);
+
+    {
+        uktextnorm::NormalizeOptions conservative = uktextnorm::options_for_preset(uktextnorm::NormalizePreset::Conservative);
+        expect_eq("homoglyphs off in conservative",
+                  normalize_ukrainian("Пoлтaвa", conservative),
+                  "Пoлтaвa");
+        uktextnorm::NormalizeOptions no_validation;
+        no_validation.validate_dates = false;
+        expect_eq("invalid date rejected",
+                  normalize_ukrainian("тридцять 30.02.2024"),
+                  "тридцять тридцять крапка нуль два крапка дві тисячі двадцять чотири");
+        expect_eq("invalid date accepted when validation off",
+                  normalize_ukrainian("30.02.2024", no_validation),
+                  "тридцяте лютого дві тисячі двадцять четвертого року");
+        uktextnorm::NormalizeOptions strip_quotes;
+        strip_quotes.quote_style = uktextnorm::QuoteStyle::Strip;
+        expect_eq("quote strip", normalize_ukrainian("Слово «тест» тут", strip_quotes), "Слово тест тут");
+        uktextnorm::NormalizeOptions straight_quotes;
+        straight_quotes.quote_style = uktextnorm::QuoteStyle::Straight;
+        expect_eq("quote straight",
+                  normalize_ukrainian("Слово «тест» тут", straight_quotes),
+                  "Слово \"тест\" тут");
+        expect_eq("ip untouched by separators",
+                  normalize_ukrainian("IP 192.168.100.200", conservative),
+                  "IP сто дев'яносто два крапка сто шістдесят вісім крапка сто крапка двісті");
+    }
+    expect_uncertain_metadata("uncertain invalid date metadata",
+                              uktextnorm::flag_uncertain("Дата 30.02.2024"),
+                              "30.02.2024",
+                              uktextnorm::UncertaintyCategory::InvalidDate,
+                              uktextnorm::UncertaintySeverity::Error);
+    expect_uncertain_metadata("uncertain number grouping metadata",
+                              uktextnorm::flag_uncertain("Сума 1,234"),
+                              "1,234",
+                              uktextnorm::UncertaintyCategory::AmbiguousNumberGrouping,
                               uktextnorm::UncertaintySeverity::Warning);
 
     for (int i = 1; i < argc; ++i) {

@@ -44,9 +44,31 @@ if(NOT ctre_FOUND)
     endif()
 endif()
 
+# Regenerate the lexicon header from data/lexicons/*.tsv when Python is available.
+# A pre-generated copy is committed so builds work without Python.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    file(GLOB NORMALIZE_UK_CPP_LEXICON_TSVS ${CMAKE_CURRENT_SOURCE_DIR}/data/lexicons/*.tsv)
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/uktextnorm/generated/uktextnorm_lexicons.hpp
+        COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_lexicon.py
+                ${CMAKE_CURRENT_SOURCE_DIR}/data/lexicons
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/uktextnorm/generated/uktextnorm_lexicons.hpp
+        DEPENDS ${NORMALIZE_UK_CPP_LEXICON_TSVS} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_lexicon.py
+        COMMENT "Generating uktextnorm lexicons from data/lexicons"
+        VERBATIM
+    )
+endif()
+
 add_library(normalize_uk_cpp
     src/rozpodil/rozpodil.cpp
-    src/uktextnorm/uktextnorm.cpp
+    src/uktextnorm/generated/uktextnorm_lexicons.hpp
+    src/uktextnorm/internal.cpp
+    src/uktextnorm/numbers.cpp
+    src/uktextnorm/passes_lexical.cpp
+    src/uktextnorm/passes_numeric.cpp
+    src/uktextnorm/passes_structural.cpp
+    src/uktextnorm/pipeline.cpp
 )
 add_library(normalize_uk_cpp::normalize_uk_cpp ALIAS normalize_uk_cpp)
 set_target_properties(normalize_uk_cpp PROPERTIES
@@ -95,7 +117,12 @@ if(NORMALIZE_UK_CPP_BUILD_TESTS)
 
     add_executable(uktextnorm_tests tests/uktextnorm_tests.cpp)
     target_link_libraries(uktextnorm_tests PRIVATE normalize_uk_cpp::normalize_uk_cpp)
-    add_test(NAME uktextnorm_tests COMMAND uktextnorm_tests ${CMAKE_CURRENT_SOURCE_DIR})
+    add_test(NAME uktextnorm_tests COMMAND uktextnorm_tests
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_golden.tsv
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_domain_golden.tsv
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_robust_golden.tsv
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/uktextnorm_morphology_golden.tsv
+    )
 
     add_executable(uktextnorm_robustness_tests tests/uktextnorm_robustness_tests.cpp)
     target_link_libraries(uktextnorm_robustness_tests PRIVATE normalize_uk_cpp::normalize_uk_cpp)
