@@ -8,7 +8,7 @@ project(
 )
 
 if(MSVC)
-    add_compile_options(/utf-8)
+    add_compile_options(/utf-8 /templateDepth:2048)
 endif()
 
 include(GNUInstallDirs)
