@@ -7,6 +7,10 @@ project(
     LANGUAGES CXX
 )
 
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 include(GNUInstallDirs)
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
