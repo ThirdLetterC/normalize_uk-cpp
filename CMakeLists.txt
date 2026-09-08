@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     normalize_uk_cpp
-    VERSION 0.1.0
+    VERSION 0.3.0
     DESCRIPTION "Ukrainian text normalization and tokenization utilities"
     LANGUAGES CXX
 )
