@@ -325,7 +325,7 @@ int main(int argc, char** argv)
     expect_eq("time part", normalize_ukrainian("6:00 ранку"), "шість годин ранку");
     expect_eq("time with seconds",
               normalize_ukrainian("Зустріч о 12:34:56"),
-              "Зустріч о дванадцять годин тридцять чотири хвилини п'ятдесят шість секунд");
+              "Зустріч о дванадцятій годині тридцять чотири хвилини п'ятдесят шість секунд");
     expect_eq("comma currency",
               normalize_ukrainian("1 234,56 грн"),
               "тисяча двісті тридцять чотири гривні п'ятдесят шість копійок");
