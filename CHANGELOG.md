@@ -7,6 +7,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-09-16
+
+### Fixed
+
+- `впродовж` and `упродовж` now govern the genitive case like `протягом`, so
+  counts use genitive readings («Впродовж 15 хвилин» → «Впродовж п'ятнадцяти хвилин»).
+- Clock times after `о` / `об` now use the locative hour («о 10:30» →
+  «о десятій годині тридцять хвилин»); minutes and seconds are unchanged.
+
 ## [0.4.6] - 2026-09-15
 
 ### Changed
@@ -248,6 +257,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Bare ranges before sentence punctuation, ranges following a punctuation dash, and English `P.`/`pp.` page ranges
   now honor `RangeStyle.FromTo`.
 
+[0.4.7]: https://github.com/ThirdLetterC/normalize_uk-cpp/releases/tag/v0.4.7
 [0.4.6]: https://github.com/ThirdLetterC/normalize_uk-cpp/releases/tag/v0.4.6
 [0.4.5]: https://github.com/ThirdLetterC/normalize_uk-cpp/releases/tag/v0.4.5
 [0.4.4]: https://github.com/ThirdLetterC/normalize_uk-cpp/releases/tag/v0.4.4
