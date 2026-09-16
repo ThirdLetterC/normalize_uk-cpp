@@ -18,6 +18,8 @@ std::string normalize_case_context(std::string text)
                                                                                 {"без", "gen"},
                                                                                 {"після", "gen"},
                                                                                 {"протягом", "gen"},
+                                                                                {"впродовж", "gen"},
+                                                                                {"упродовж", "gen"},
                                                                                 {"перед", "instr"},
                                                                                 {"між", "instr"},
                                                                                 {"над", "instr"},
