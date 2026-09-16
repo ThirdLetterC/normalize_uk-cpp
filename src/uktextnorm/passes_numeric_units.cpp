@@ -50,7 +50,8 @@ std::string normalize_time(std::string text, ColonStyle colon_style)
         return m[1].str() +
                clock_words(clock_hour,
                            parse_int(m[3].str()),
-                           m[4].matched ? std::optional<int>(parse_int(m[4].str())) : std::nullopt) +
+                           m[4].matched ? std::optional<int>(parse_int(m[4].str())) : std::nullopt,
+                           governed_by_o(m)) +
                suffix;
     });
     static const std::regex zoned(

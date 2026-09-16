@@ -182,7 +182,7 @@ int main(int argc, char** argv)
     expect_eq("decade without written suffix",
               normalize_ukrainian("У 1940 роках створили перші системи."),
               "У тисяча дев'ятсот сорокових роках створили перші системи.");
-    expect_eq("time", normalize_ukrainian("Зустріч о 06:06"), "Зустріч о шість годин шість хвилин");
+    expect_eq("time", normalize_ukrainian("Зустріч о 06:06"), "Зустріч о шостій годині шість хвилин");
     expect_eq("currency", normalize_ukrainian("Ціна 12.50 грн"), "Ціна дванадцять гривень п'ятдесят копійок");
     expect_eq("measure", normalize_ukrainian("5 кг і 2 хв"), "п'ять кілограмів і дві хвилини");
     expect_eq("latin measurement symbols",
@@ -1186,6 +1186,15 @@ int main(int argc, char** argv)
     expect_eq("measurement after duration governor",
               normalize_ukrainian("протягом 4 хвилин", audit_options),
               "протягом чотирьох хвилин");
+    expect_eq("measurement after vprodovzh governor",
+              normalize_ukrainian("Впродовж 15 хвилин очікуємо відбій тривоги.", audit_options),
+              "Впродовж п'ятнадцяти хвилин очікуємо відбій тривоги.");
+    expect_eq("measurement after uprodovzh governor",
+              normalize_ukrainian("упродовж 3 днів", audit_options),
+              "упродовж трьох днів");
+    expect_eq("clock time after o takes locative",
+              normalize_ukrainian("Зустріч о 10:30", audit_options),
+              "Зустріч о десятій годині тридцять хвилин");
     expect_eq("bare dot decimal",
               normalize_ukrainian("Коефіцієнт 0.9996.", audit_options),
               "Коефіцієнт нуль цілих і дев'ять тисяч дев'ятсот дев'яносто шість десятитисячних.");
