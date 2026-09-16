@@ -5,13 +5,21 @@
 
 namespace uktextnorm::detail {
 
+bool governed_by_o(const std::smatch& m)
+{
+    const auto word = preceding_word(m.prefix().str() + m[1].str());
+    return word == "о" || word == "об";
+}
+
 std::string normalize_time(std::string text, ColonStyle colon_style)
 {
-    auto clock_words = [](int hour, int minute, std::optional<int> second = std::nullopt) {
+    auto clock_words = [](int hour, int minute, std::optional<int> second = std::nullopt, bool locative = false) {
         if ((hour == 0 || hour == 24) && minute == 0 && (!second || *second == 0)) {
             return std::string("опівночі");
         }
-        std::string out = hours_words(hour);
+        std::string out = locative ? number_to_ordinal_words(static_cast<unsigned long long>(hour), "loc_f") +
+                                         " годині"
+                                   : hours_words(hour);
         if (minute) {
             out += " " + minutes_words(minute);
         }
@@ -42,7 +50,8 @@ std::string normalize_time(std::string text, ColonStyle colon_style)
         return m[1].str() +
                clock_words(clock_hour,
                            parse_int(m[3].str()),
-                           m[4].matched ? std::optional<int>(parse_int(m[4].str())) : std::nullopt) +
+                           m[4].matched ? std::optional<int>(parse_int(m[4].str())) : std::nullopt,
+                           governed_by_o(m)) +
                suffix;
     });
     static const std::regex zoned(
@@ -115,7 +124,8 @@ std::string normalize_time(std::string text, ColonStyle colon_style)
         if (hour > 23) {
             return m.str();
         }
-        return m[1].str() + clock_words(hour, parse_int(m[3].str()), parse_int(m[4].str()));
+        return m[1].str() +
+               clock_words(hour, parse_int(m[3].str()), parse_int(m[4].str()), governed_by_o(m));
     });
     text = ctre_sub<R"((^|[^А-Яа-яЄєІіЇїҐґ\d])((?:О|о)(?:б)?) (\d{1,2})(?:-|–|—)?(?:й|ій|а|ої)(?![А-Яа-яЄєІіЇїҐґ]))">(
         text, [](const auto& m) {
@@ -126,7 +136,10 @@ std::string normalize_time(std::string text, ColonStyle colon_style)
         R"((^|[^\d:])(\d{1,2}):([0-5]\d)\s+(ранку|дня|вечора|ночі)(?![А-Яа-яЄєІіЇїҐґ\d:]))", std::regex::icase);
     text = regex_sub(text, day_period, [&](const std::smatch& m) {
         const auto hour = parse_int(m[2].str());
-        return hour <= 23 ? m[1].str() + clock_words(hour, parse_int(m[3].str())) + " " + m[4].str() : m.str();
+        return hour <= 23
+                   ? m[1].str() + clock_words(hour, parse_int(m[3].str()), std::nullopt, governed_by_o(m)) + " " +
+                         m[4].str()
+                   : m.str();
     });
     static const std::regex hm(R"((^|[^\d:])(\d{1,2}):([0-5]\d)(?![\d:]))");
     text = regex_sub(text, hm, [&](const std::smatch& m) {
@@ -137,7 +150,8 @@ std::string normalize_time(std::string text, ColonStyle colon_style)
         if (hour == 24 && parse_int(m[3].str()) == 0) {
             return m[1].str() + clock_words(hour, 0);
         }
-        return hour <= 23 ? m[1].str() + clock_words(hour, parse_int(m[3].str())) : m.str();
+        return hour <= 23 ? m[1].str() + clock_words(hour, parse_int(m[3].str()), std::nullopt, governed_by_o(m))
+                          : m.str();
     });
     static const std::regex ratio(R"((^|[^\d:])(\d+):(\d+)(?![\d:]))");
     return regex_sub(text, ratio, [&](const std::smatch& m) {

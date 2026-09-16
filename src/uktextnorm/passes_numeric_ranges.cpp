@@ -83,7 +83,7 @@ std::string normalize_ordinals(std::string text)
         return m[1].str() + number_to_ordinal_words(*value, form) + noun;
     });
     static const std::regex bare_cyrillic_century_before_start(
-        R"((Протягом|протягом)\s+((?:Х|І|X|I|V|M|C|D|L){1,8})\s+та\s+початку)");
+        R"((Протягом|протягом|Впродовж|впродовж|Упродовж|упродовж)\s+((?:Х|І|X|I|V|M|C|D|L){1,8})\s+та\s+початку)");
     text = regex_sub(text, bare_cyrillic_century_before_start, [&](const std::smatch& m) {
         const auto value = cyrillic_roman_value(m[2].str());
         return value ? m[1].str() + " " + number_to_ordinal_words(*value, "gen") + " століття та початку" : m.str();
