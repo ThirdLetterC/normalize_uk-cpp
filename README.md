@@ -6,6 +6,8 @@
 
 C++23 Ukrainian text normalization and tokenization utilities with optional Python 3.10+ bindings.
 
+Alternative written in Rust: https://github.com/RustedBytes/normalize-uk
+
 ## CMake
 
 ```sh
